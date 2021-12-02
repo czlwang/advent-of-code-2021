@@ -28,6 +28,7 @@ library
       Lib
       Year2020.Day01.Solution
       Year2021.Day01.Solution
+      Year2021.Day02.Solution
   other-modules:
       Paths_aoc2021
   hs-source-dirs:
