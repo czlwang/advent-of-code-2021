@@ -23,7 +23,7 @@ solve2 init moves = d*x
                     where (d,x,a) = solve2' init moves
 
 solve2' :: (Int, Int, Int) -- ^ (depth, x pos, aim)
-  -> [(String, Int)] -- ^ 
+  -> [(String, Int)] 
   -> (Int, Int, Int)
 solve2' (d,x,a) [] = (d,x,a)
 solve2' (d,x,a) ((dir, amt):moves) = solve2' updated moves
