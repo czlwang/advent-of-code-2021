@@ -9,15 +9,18 @@ import Data.Bifunctor
 import Control.Monad
 import Data.Array
 
-solve :: IO()
-solve = do
-            test <- readFile "/home/czw/Documents/2021/aoc2021/src/Year2021/Day04/test_input1.txt"
-            input1 <- readFile "/home/czw/Documents/2021/aoc2021/src/Year2021/Day04/input1.txt"
+solve :: String -> IO()
+solve root = do 
+            test <- readFile test_path
+            input1 <- readFile input1_path
             print $ parseInput test
             print $ second ((4512==).solve1) $ parseInput test
             print $ second ((1924==).solve2) $ parseInput test
             print $ second solve1 $ parseInput input1
             print $ second solve2 $ parseInput input1
+              where 
+                test_path = root ++ "Day04/test_input1.txt"
+                input1_path = root ++ "Day04/input1.txt"
 
 type Board = Array (Int, Int) Int
 type Status = Array (Int, Int) Int
@@ -97,6 +100,7 @@ computeAnswer board status n = n*sum [board ! i | (i,v) <- assocs status, v==0]
 
 prettyPrint newStatus boards = intercalate "\n" [show row | row <- nested]
                                where nested = [[( (newStatus !! 2) ! (j,i), (boards !! 2) ! (j,i)) | i <- [0..4]] | j<- [0..4]]
+
 findWinner :: [Board] -- ^ bingo boards
   -> [Status] -- ^ bingo boards call status
   -> [Int] -- ^ list of called nums

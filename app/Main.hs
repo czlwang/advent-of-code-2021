@@ -12,8 +12,10 @@ main :: IO ()
 main = do
         args <- getArgs
         case (head args, args !! 1) of
-            ("2021", "01") -> Year2021.Day01.Solution.solve
-            ("2021", "02") -> Year2021.Day02.Solution.solve
-            ("2021", "03") -> Year2021.Day03.Solution.solve
-            ("2021", "04") -> Year2021.Day04.Solution.solve
+            ("2021", "01") -> Year2021.Day01.Solution.solve root 
+            ("2021", "02") -> Year2021.Day02.Solution.solve root 
+            ("2021", "03") -> Year2021.Day03.Solution.solve root 
+            ("2021", "04") -> Year2021.Day04.Solution.solve root 
             (_, _) -> putStrLn "UhOh"
+        where 
+            root = "/home/czw/Documents/2021/aoc2021/src/Year2021/"
