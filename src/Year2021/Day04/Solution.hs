@@ -13,7 +13,6 @@ solve :: String -> IO()
 solve root = do 
             test <- readFile test_path
             input1 <- readFile input1_path
-            print $ parseInput test
             print $ second ((4512==).solve1) $ parseInput test
             print $ second ((1924==).solve2) $ parseInput test
             print $ second solve1 $ parseInput input1
