@@ -1,10 +1,7 @@
 module Year2021.Day05.Solution (solve) where
 import Text.ParserCombinators.Parsec
 import Debug.Trace
-import qualified Data.Map as M
 import Data.List
-import qualified Data.Set as S
---import Control.Lens
 import Data.Bifunctor
 import Control.Monad
 import Data.Array
@@ -54,10 +51,8 @@ segment2list diag seg | s1==e1 = [(s1,i) | i<-findRange s2 e2]
 
 solve12 :: [Segment] -> (Int,Int)
 solve12 segs = (countOverlaps points, countOverlaps pointsDiag)
-            where 
+            where
                   segs2grouped diag = (group . sort) (concatMap (segment2list diag) segs)
                   points = segs2grouped False
                   pointsDiag = segs2grouped True
-                  countOverlaps = length . filter (\x -> length x > 1) 
-
-
+                  countOverlaps = length . filter (>1) . map length
