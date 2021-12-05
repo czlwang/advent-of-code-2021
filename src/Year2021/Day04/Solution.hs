@@ -3,6 +3,7 @@ import Text.ParserCombinators.Parsec
 import Debug.Trace
 import qualified Data.Map as M
 import Data.List
+import qualified Data.Set as S
 --import Control.Lens
 import Data.Bifunctor
 import Control.Monad
@@ -14,7 +15,9 @@ solve = do
             input1 <- readFile "/home/czw/Documents/2021/aoc2021/src/Year2021/Day04/input1.txt"
             print $ parseInput test
             print $ second ((4512==).solve1) $ parseInput test
+            print $ second ((1924==).solve2) $ parseInput test
             print $ second solve1 $ parseInput input1
+            print $ second solve2 $ parseInput input1
 
 type Board = Array (Int, Int) Int
 type Status = Array (Int, Int) Int
@@ -85,7 +88,9 @@ checkBoardWin b = rowWin || colWin
                           colWin = (n+1) `elem` ([sum [b ! (j,i) | j <- [0..n]] | i <- [0..n]])
 
 checkWin :: [Board] -> Maybe Int
-checkWin boards = lookup True [(checkBoardWin (boards !! i), i) | i <- [0..length boards - 1]]
+checkWin boards = lookup True $ checkWins boards
+
+checkWins boards = [(checkBoardWin (boards !! i), i) | i <- [0..length boards - 1]]
 
 computeAnswer :: Board -> Board -> Int -> Int
 computeAnswer board status n = n*sum [board ! i | (i,v) <- assocs status, v==0]
@@ -103,3 +108,27 @@ findWinner boards boardStatus (x:xs) vmaps = case winner of (Just idx) -> comput
                                                       newStatus = callNum boards boardStatus vmaps x
                                                       winner = checkWin newStatus
 findWinner _ _ _ _ = error "uh oh"
+
+solve2 :: Day4AInput -> Int
+solve2 input = findWinnerLast boardNums boardSpots nums vmaps [0..length boardNums - 1]
+                where boardNums = d4boards input
+                      n = fst . snd $ bounds $ head boardNums
+                      initBoard = listArray ((0,0),(n,n)) [0 | _ <- [1..(n+1)^2]]
+                      boardSpots = [initBoard | _ <- [0..length boardNums - 1]]
+                      nums = d4called input
+                      vmaps = map arrayValueMap boardNums
+
+findWinnerLast :: [Board] -- ^ bingo boards
+  -> [Status] -- ^ bingo boards call status
+  -> [Int] -- ^ list of called nums
+  -> [ValueMap]
+  -> [Int] -- ^ remaining bingocards
+  -> Int -- solve1 answer
+findWinnerLast boards boardStatus (x:xs) vmaps cards@(c:cs) = if null cs && S.member c winners
+                                                              then computeAnswer (boards !! c) (newStatus !! c) x
+                                                              else findWinnerLast boards newStatus xs vmaps (S.toList newCards)
+                                                where
+                                                      newStatus = callNum boards boardStatus vmaps x
+                                                      winners = S.fromList $ (map snd . filter fst) $ checkWins newStatus
+                                                      newCards = S.difference (S.fromList cards) winners
+findWinnerLast _ _ _ _ _ = error "uh oh"
