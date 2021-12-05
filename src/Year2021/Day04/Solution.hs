@@ -16,7 +16,7 @@ solve = do
             --print $ 900 == (solve2 (0,0,0) . parse) test
             --print $ (solve2 (0,0,0) . parse) input1
 
-type Board = [[Int]]
+type Board = Array (Int, Int) Int
 data Day4AInput = Day4AInput{d4called :: [Int],
                              d4boards :: [Board]} deriving Show
 
@@ -34,12 +34,13 @@ boardLine = do
             cells <- many (char ' ') *> sepBy1 (many1 digit) (many1 (char ' '))
             return $ map read cells
 
-list2array :: [[Int]] -> Array (Int, Int) Int
+list2array :: [[Int]] -> Board
 list2array b = listArray ((0,0),(n, n)) (let y = [x | row <- b, x <- row] in trace (show y) y)
                 where n = length b - 1
 
-board :: GenParser Char st [[Int]]
-board = endBy1 boardLine eol
+board :: GenParser Char st Board
+board = do b <- endBy1 boardLine eol
+           return $ list2array b
 
 boards :: GenParser Char st [Board]
 boards = sepBy board eol
@@ -58,7 +59,7 @@ parseInput = parse day4 "(unknown)"
 solve1 :: Day4AInput -> Int
 solve1 input = 1
                 where boardNums = d4boards input
-                      initBoard n = listArray (n,n) [1 | _ <- [0..n*n]]
+                      initBoard n = listArray ((0,0),(n,n)) [1 | _ <- [0..n*n]]
                       boardSpots = [initBoard (length (head boardNums)) | _ <- [0..length boardNums]]
                       nums = d4called input
 
