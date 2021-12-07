@@ -1,10 +1,8 @@
 module Year2021.Day05.Solution (solve) where
 import Text.ParserCombinators.Parsec
-import Debug.Trace
 import Data.List
 import Data.Bifunctor
 import Control.Monad
-import Data.Array
 
 solve :: String -> IO()
 solve root = do
