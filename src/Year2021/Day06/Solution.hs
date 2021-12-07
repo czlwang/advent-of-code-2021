@@ -36,13 +36,9 @@ solve1 n squids = sum [(run !! (o+1))*c | (o,c) <- offsetCounts]
 query ts t | t >=0     = ts !! t
            | otherwise = 0
 
-singleSolve :: Int -- ^ how many steps to run?
-  -> [Int] -- ^ at index t: how many squids are giving birth at t? note that this is the also number of new immature squids at time t and it is also the number of squids which have reached maturity. So in 9 timesteps the squids being born will be giving birth. And in 6 timesteps, all these mature squids will be giving birth again
-  -> [Int] -- ^ at index t of the reversed list: how many squids exist at t?
-  -> [Int]
+singleSolve :: Int -> [Int] -> [Int] -> [Int]
 singleSolve n ts total | t == n+1 = total
                        | otherwise = singleSolve n (ts ++ [new_mature]) new_total
                     where t = length ts
-                          -- who's giving birth this cycle? all the mature from 7 steps ago + all the immature from 9 steps ago
                           new_mature = query ts (t-7) + query ts (t-9)
                           new_total  = (head total + new_mature):total
