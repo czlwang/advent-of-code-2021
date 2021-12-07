@@ -10,7 +10,6 @@ solve :: String -> IO()
 solve root = do
             test <- readFile test_path
             input1 <- readFile input1_path
-            print $ parseInput test
             print $ second ((==5934).solve1 80) $ parseInput test
             print $ second (solve1 80) $ parseInput input1
             print $ second ((==26984457539).solve1 256) $ parseInput test
@@ -29,10 +28,7 @@ day06 = do digits <- sepBy (many1 digit) (char ',') <* many eol <* eof
 parseInput = parse day06 "(unknown)"
 
 solve1 :: Int -> [Int] -> Int
---solve1 n squids = (length run - 1, run !! (length run - 1))-- sum [(run !! (n-o))*c | (o,c) <- offsetCounts]
---solve1 n squids = trace (show (zip [0..length run] run) ++ show offsetCounts) sum [(run !! (n-o-1))*c | (o,c) <- offsetCounts]
---solve1 n squids = run !! n --sum [(run !! (n-o-1))*c | (o,c) <- offsetCounts]
-solve1 n squids = trace (show run) sum [(run !! (n-o-1))*c | (o,c) <- offsetCounts]
+solve1 n squids = sum [(run !! (n-o-1))*c | (o,c) <- offsetCounts]
                     where
                         offsetCounts = map (\x-> (head x, length x)) $ group $ sort squids
                         run = map (uncurry (+)) $ singleSolve n [1] [(1,1)]
