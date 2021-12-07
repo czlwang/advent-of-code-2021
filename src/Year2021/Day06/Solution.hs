@@ -18,7 +18,6 @@ solve root = do
                 test_path = root ++ "Day06/test_input1.txt"
                 input1_path = root ++ "Day06/input1.txt"
 
-
 eol = char '\n'
 
 day06 :: GenParser Char st [Int]
