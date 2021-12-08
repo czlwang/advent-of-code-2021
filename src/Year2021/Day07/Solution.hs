@@ -8,7 +8,6 @@ import Data.Array
 
 solve :: String -> IO()
 solve root = do
-            print "hello"
             test <- readFile test_path
             input1 <- readFile input1_path
             print $ show $ parseInput test
