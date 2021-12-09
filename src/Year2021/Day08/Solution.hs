@@ -15,8 +15,8 @@ solve root = do
             print $ second ((==61229).solve2) $ parseInput test
             print $ second solve2 $ parseInput input1
           where
-                test_path = root ++ "Day08/test_input1.txt"
-                input1_path = root ++ "Day08/input1.txt"
+            test_path = root ++ "Day08/test_input1.txt"
+            input1_path = root ++ "Day08/input1.txt"
 
 inLine :: GenParser Char st ([String], [String])
 inLine = do ins <- endBy1 (many1 letter) (char ' ')
