@@ -45,7 +45,11 @@ inBounds ((startX, startY), (endX, endY)) (m, n) = startX <= m && m <= endX && s
 getNeighborCoords :: (Int, Int) -> Board -> [(Int,Int)]
 getNeighborCoords (m,n) board = filter (inBounds (bounds board)) [(m+i,n+j) | (i,j) <- [(0,1), (1,0), (-1,0), (0,-1)]]
 
-lowpoints board = fst <$> filter (\(i, coords) -> and ((>board ! i) <$> ((!) board <$> coords))) [(i, getNeighborCoords i board) | i <- indices board]
+lowpoints board = do i <- indices board
+                     let neighbors = getNeighborCoords i board
+                         elem = board ! i
+                         lowest = and $ (>elem) <$> ((!) board <$> neighbors)
+                     if lowest then return i else mzero
 
 solve1 b = sum $ (+ 1) . (board !) <$> lowpoints board
             where board = list2board b
