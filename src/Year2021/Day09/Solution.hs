@@ -23,12 +23,12 @@ solve root = do
             parseInput = parse inputs "(unknown)"
 
 solve1 b = sum $ (+ 1) . (b !) <$> lowpoints b
-solve2 b =  product . take 3 . reverse . sort $ length . findBasin b (constArray b False) [] . (:[]) <$> lowpoints b
+solve2 b = product . take 3 . reverse . sort $ length . findBasin b (constArray b False) [] . (:[]) <$> lowpoints b
 
 lowpoints board = do i <- indices board
                      let neighbors = getArrayNeighbors i board
-                         elem = board ! i
-                         lowest = and $ (>elem) <$> ((!) board <$> neighbors)
+                         e = board ! i
+                         lowest = and $ (>e) . (board !) <$> neighbors
                      if lowest then return i else mzero
 
 findBasin :: Board -> BoardState -> [Coord] -> [Coord] -> [Coord]
