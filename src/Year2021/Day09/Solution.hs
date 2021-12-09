@@ -2,6 +2,7 @@ module Year2021.Day09.Solution (solve) where
 import Text.ParserCombinators.Parsec
 import Data.List
 import Data.Bifunctor
+import Debug.Trace
 import Control.Monad
 import Data.Maybe
 import Data.Either
@@ -13,12 +14,11 @@ solve :: String -> IO()
 solve root = do
             test <- readFile test_path
             input1 <- readFile input1_path
-            print $ second list2board $ parseInput test
-            print $ second (solve1) $ parseInput test
+            print $ second solve1 $ parseInput test
             print $ second ((==15).solve1) $ parseInput test
             print $ second solve1 $ parseInput input1
-            --print $ second ((==61229).solve2) $ parseInput test
-            --print $ second solve2 $ parseInput input1
+            print $ second ((==1134).solve2) $ parseInput test
+            print $ second solve2 $ parseInput input1
           where
             test_path = root ++ "Day09/test_input1.txt"
             input1_path = root ++ "Day09/input1.txt"
@@ -33,6 +33,7 @@ inputs = endBy inLine (void (char '\n') <|> eof)
 parseInput = parse inputs "(unknown)"
 
 type Board = Array (Int, Int) Int
+type BoardState = Array (Int, Int) Bool
 
 list2board xs = listArray ((0,0), (n,m)) (concat xs)
                 where n = length xs - 1
@@ -43,7 +44,10 @@ inBounds :: ((Int, Int), (Int, Int)) -> (Int, Int) -> Bool
 inBounds ((startX, startY), (endX, endY)) (m, n) = startX <= m && m <= endX && startY <= n && n <= endY
 
 getNeighborCoords :: (Int, Int) -> Board -> [(Int,Int)]
-getNeighborCoords (m,n) board = filter (inBounds (bounds board)) [(m+i,n+j) | (i,j) <- [(0,1), (1,0), (-1,0), (0,-1)]]
+getNeighborCoords (m,n) board = do (i,j) <- [(0,1), (1,0), (-1,0), (0,-1)]
+                                   let nbr = (m+i, n+j)
+                                       bnds = bounds board
+                                   if inBounds bnds nbr then return nbr else mzero
 
 lowpoints board = do i <- indices board
                      let neighbors = getNeighborCoords i board
@@ -53,3 +57,17 @@ lowpoints board = do i <- indices board
 
 solve1 b = sum $ (+ 1) . (board !) <$> lowpoints board
             where board = list2board b
+
+solve2 :: [[Int]] -> Int
+solve2 b =  product . take 3 . reverse . sort $ length . findBasin board visited [] . (:[]) <$> lowpoints board
+            where board = list2board b
+                  visited = listArray (bounds board) [False | _ <- elems board]
+
+findBasin :: Board -> BoardState -> [(Int, Int)] -> [(Int, Int)] -> [(Int, Int)]
+findBasin board visited basin [] = basin
+findBasin board visited basin (f:fs) = findBasin board newVisited (f:basin) newFrontier 
+                                        where
+                                          nbrs = getNeighborCoords f board
+                                          newVisited = visited // [(f, True)]
+                                          frontierNeighbors = foldr filter nbrs [(/=9).(board !), not.(newVisited !)]
+                                          newFrontier = S.toList (S.union (S.fromList frontierNeighbors) (S.fromList fs))
