@@ -26,6 +26,7 @@ dependencies:
 - lens
 - containers
 - array
+- safe
 
 library:
   source-dirs: src

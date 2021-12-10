@@ -5,10 +5,15 @@ module Lib
       BoardState,
       list2board,
       getArrayNeighbors,
-      constArray
+      constArray,
+      list2array,
+      eol
     ) where
 
 import Data.Array
+import Text.ParserCombinators.Parsec
+import Data.List
+
 someFunc :: IO ()
 someFunc = putStrLn "someFunc"
 
@@ -26,3 +31,13 @@ getArrayNeighbors (m,n) board = filter (inRange (bounds board)) [(m+i, n+j) | (i
 
 constArray :: Array (Int, Int) a -> b -> Array (Int, Int) b
 constArray board b = listArray (bounds board) [b | _ <- elems board]
+
+eol :: GenParser Char st Char
+eol = char '\n'
+
+list2array :: [[Int]] -> Board
+list2array b = listArray ((0,0),(n, n)) [x | row <- b, x <- row]
+                where n = length b - 1
+
+prettyPrint newStatus boards = intercalate "\n" [show row | row <- nested]
+                               where nested = [[( (newStatus !! 2) ! (j,i), (boards !! 2) ! (j,i)) | i <- [0..4]] | j<- [0..4]]

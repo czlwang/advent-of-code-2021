@@ -1,15 +1,9 @@
 module Year2021.Day10.Solution (solve) where
 import Lib
-import Debug.Trace
 import Text.ParserCombinators.Parsec
 import Data.List
 import Data.Map hiding (mapMaybe, filter, foldl)
 import Data.Either
-import Data.Bifunctor
-import Control.Monad
-import Data.Maybe
-import Data.Char
-import qualified Data.Set as S
 
 solve :: String -> IO()
 solve root = do
