@@ -7,7 +7,9 @@ module Lib
       getArrayNeighbors,
       constArray,
       list2array,
-      eol
+      eol,
+      rowSum2d,
+      colSum2d
     ) where
 
 import Data.Array
@@ -41,3 +43,9 @@ list2array b = listArray ((0,0),(n, n)) [x | row <- b, x <- row]
 
 prettyPrint newStatus boards = intercalate "\n" [show row | row <- nested]
                                where nested = [[( (newStatus !! 2) ! (j,i), (boards !! 2) ! (j,i)) | i <- [0..4]] | j<- [0..4]]
+
+
+colSum2d b = [sum [b ! (j,i) | j <- [0..n]] | i <- [0..n]]
+                where n = snd . snd $ bounds b
+rowSum2d b = [sum [b ! (i,j) | j <- [0..n]] | i <- [0..n]]
+                where n = fst . snd $ bounds b

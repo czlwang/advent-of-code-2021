@@ -11,12 +11,8 @@ solve :: String -> IO()
 solve root = do
             test <- readFile test_path
             input1 <- readFile input1_path
-            print $ second ((4512==).solve1) $ parseInput test
-            print $ second ((1924==).solve2) $ parseInput test
-            print $ second solve1 $ parseInput input1
-            print $ second solve2 $ parseInput input1
+            print $ second (((Just 4512, Just 1924)==).solve12) $ parseInput test
             print $ second solve12 $ parseInput input1
-            print $ second solve12 $ parseInput test
               where
                 test_path = root ++ "Day04/test_input1.txt"
                 input1_path = root ++ "Day04/input1.txt"
@@ -43,21 +39,12 @@ parseInput = parse day4 "(unknown)"
 
 solve12 input = findWinnerFL boardNums boardSpots nums vmaps cards Nothing Nothing
                 where boardNums = d4boards input
-                      n = fst . snd $ bounds $ head boardNums
-                      initBoard = listArray ((0,0),(n,n)) [0 | _ <- [1..(n+1)^2]]
-                      boardSpots = [initBoard | _ <- [0..length boardNums - 1]]
+                      m = length boardNums
+                      initBoard = constArray (head boardNums) 0
+                      boardSpots = [initBoard | _ <- [0..m]]
                       nums = d4called input
                       vmaps = map arrayValueMap boardNums
-                      cards = [0..length boardNums - 1] 
-
-solve1 :: Day4AInput -> Int
-solve1 input = findWinner boardNums boardSpots nums vmaps
-                where boardNums = d4boards input
-                      n = fst . snd $ bounds $ head boardNums
-                      initBoard = listArray ((0,0),(n,n)) [0 | _ <- [1..(n+1)^2]]
-                      boardSpots = [initBoard | _ <- [0..length boardNums - 1]]
-                      nums = d4called input
-                      vmaps = map arrayValueMap boardNums
+                      cards = [0..m] 
 
 updateStatus :: Int -> ValueMap -> Board -> Board
 updateStatus n vmap status = case M.lookup n vmap of Just (i,j) -> status // [((i,j),1)]
@@ -73,34 +60,14 @@ checkBoardWin :: Board -> Bool
 checkBoardWin b = rowWin || colWin
                     where
                           n = fst . snd $ bounds b
-                          rowWin = (n+1) `elem` ([sum [b ! (i,j) | j <- [0..n]] | i <- [0..n]])
-                          colWin = (n+1) `elem` ([sum [b ! (j,i) | j <- [0..n]] | i <- [0..n]])
-
-checkWin :: [Board] -> Maybe Int
-checkWin boards = lookup True $ checkWins boards
-
+                          rowWin = (n+1) `elem` rowSum2d b
+                          colWin = (n+1) `elem` colSum2d b
 checkWins boards = [(checkBoardWin (boards !! i), i) | i <- [0..length boards - 1]]
-
-computeAnswer :: Board -> Board -> Int -> Int
-computeAnswer board status n = n*sum [board ! i | (i,v) <- assocs status, v==0]
-
-
-findWinner :: [Board] -- ^ bingo boards
-  -> [Board] -- ^ bingo boards call status
-  -> [Int] -- ^ list of called nums
-  -> [ValueMap]
-  -> Int -- solve1 answer
-findWinner boards boardStatus (x:xs) vmaps = case winner of (Just idx) -> computeAnswer (boards !! idx) (newStatus !! idx) x
-                                                            Nothing -> findWinner boards newStatus xs vmaps
-                                                where
-                                                      newStatus = callNum boards boardStatus vmaps x
-                                                      winner = checkWin newStatus
-findWinner _ _ _ _ = error "uh oh"
 
 findWinnerFL :: [Board] -- ^ bingo boards
   -> [Board] -- ^ bingo boards call status
   -> [Int] -- ^ list of called nums
-  -> [ValueMap]
+  -> [ValueMap] -- ^ inverse map from values to coords
   -> [Int] -- ^ remaining bingocards
   -> Maybe Int -- solve1 answer
   -> Maybe Int -- solve2 answer
@@ -114,6 +81,7 @@ findWinnerFL boards boardStatus (x:xs) vmaps cards first last = case winner of (
                                                       cardSet = S.fromList cards
                                                       winners = S.intersection cardSet (S.fromList $ (map snd . filter fst) $ checkWins newStatus)
                                                       winner = headMay (S.toList winners)
+                                                      computeAnswer board status n = n*sum [board ! i | (i,v) <- assocs status, v==0]
                                                       answer idx = computeAnswer (boards !! idx) (newStatus !! idx) x
                                                       newFirst idx = case first of Nothing -> answer idx
                                                                                    (Just a) -> a
@@ -121,28 +89,4 @@ findWinnerFL boards boardStatus (x:xs) vmaps cards first last = case winner of (
                                                       newCards = S.difference cardSet winners
                                                       recurse = findWinnerFL boards newStatus xs vmaps (S.toList newCards)
                                                       recurseWinner idx = recurse (Just (newFirst idx)) (Just (newLast idx)) 
-                                                      recurseLoser = recurse first last
-
-solve2 :: Day4AInput -> Int
-solve2 input = findWinnerLast boardNums boardSpots nums vmaps [0..length boardNums - 1]
-                where boardNums = d4boards input
-                      n = fst . snd $ bounds $ head boardNums
-                      initBoard = listArray ((0,0),(n,n)) [0 | _ <- [1..(n+1)^2]]
-                      boardSpots = [initBoard | _ <- [0..length boardNums - 1]]
-                      nums = d4called input
-                      vmaps = map arrayValueMap boardNums
-
-findWinnerLast :: [Board] -- ^ bingo boards
-  -> [Board] -- ^ bingo boards call status
-  -> [Int] -- ^ list of called nums
-  -> [ValueMap]
-  -> [Int] -- ^ remaining bingocards
-  -> Int -- solve1 answer
-findWinnerLast boards boardStatus (x:xs) vmaps cards@(c:cs) = if null cs && S.member c winners
-                                                              then computeAnswer (boards !! c) (newStatus !! c) x
-                                                              else findWinnerLast boards newStatus xs vmaps (S.toList newCards)
-                                                where
-                                                      newStatus = callNum boards boardStatus vmaps x
-                                                      winners = S.fromList $ (map snd . filter fst) $ checkWins newStatus
-                                                      newCards = S.difference (S.fromList cards) winners
-findWinnerLast _ _ _ _ _ = error "uh oh"
+                                                      recurseLoser      = recurse first last
