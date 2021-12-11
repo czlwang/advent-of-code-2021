@@ -9,7 +9,8 @@ module Lib
       list2array,
       eol,
       rowSum2d,
-      colSum2d
+      colSum2d,
+      prettyArray
     ) where
 
 import Data.Array
@@ -43,6 +44,12 @@ list2array b = listArray ((0,0),(n, n)) [x | row <- b, x <- row]
 
 prettyPrint newStatus boards = intercalate "\n" [show row | row <- nested]
                                where nested = [[( (newStatus !! 2) ! (j,i), (boards !! 2) ! (j,i)) | i <- [0..4]] | j<- [0..4]]
+
+prettyArray board = intercalate "\n" [show row | row <- nested]
+                               where 
+                                m = fst . snd $ bounds board
+                                n = snd . snd $ bounds board
+                                nested = [[board ! (i,j) | j <- [0..n]] | i<- [0..m]]
 
 
 colSum2d b = [sum [b ! (j,i) | j <- [0..n]] | i <- [0..n]]

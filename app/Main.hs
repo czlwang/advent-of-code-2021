@@ -13,6 +13,7 @@ import Year2021.Day07.Solution
 import Year2021.Day08.Solution
 import Year2021.Day09.Solution
 import Year2021.Day10.Solution
+import Year2021.Day11.Solution
 
 main :: IO ()
 main = do
@@ -28,6 +29,7 @@ main = do
             ("2021", "08") -> Year2021.Day08.Solution.solve root21 
             ("2021", "09") -> Year2021.Day09.Solution.solve root21 
             ("2021", "10") -> Year2021.Day10.Solution.solve root21 
+            ("2021", "11") -> Year2021.Day11.Solution.solve root21 
             (_, _) -> putStrLn "uhoh check day and year"
         where 
             root21 = "/home/czw/Documents/2021/aoc2021/src/Year2021/"

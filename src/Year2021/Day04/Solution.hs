@@ -72,10 +72,10 @@ findWinnerFL :: [Board] -- ^ bingo boards
   -> Maybe Int -- solve1 answer
   -> Maybe Int -- solve2 answer
   -> (Maybe Int, Maybe Int) -- (solve1, solve2)
-findWinnerFL _ _ _ _ [] first last = (first, last)
-findWinnerFL _ _ [] _ _ first last = (first, last)
+findWinnerFL _ _ _ _ [] first last = (first, last) -- run out of cards
+findWinnerFL _ _ [] _ _ first last = (first, last) -- run out of numbers to call
 findWinnerFL boards boardStatus (x:xs) vmaps cards first last = case winner of (Just idx) -> recurseWinner idx
-                                                                               Nothing -> recurseLoser
+                                                                               Nothing    -> recurseLoser
                                                 where
                                                       newStatus = callNum boards boardStatus vmaps x
                                                       cardSet = S.fromList cards
