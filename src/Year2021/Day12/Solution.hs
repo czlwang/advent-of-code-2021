@@ -5,7 +5,6 @@ import Data.List
 import Data.Bifunctor
 import Control.Monad
 import Data.Char
-import Data.Array
 import qualified Data.Set as S
 import qualified Data.Map as M
 
