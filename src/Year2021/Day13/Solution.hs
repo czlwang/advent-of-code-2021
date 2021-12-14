@@ -80,9 +80,9 @@ updateCoords :: [Coord] -> Fold -> ([Coord], [Coord])
 updateCoords coords (FoldLeft amt) = (oldCoords, newCoords)
                                     where
                                         oldCoords = filter ((>amt).snd) coords
-                                        newCoords    = [(x, amt - (y-amt)) | (x,y) <-oldCoords]
+                                        newCoords = [(x, amt - (y-amt)) | (x,y) <-oldCoords]
 updateCoords coords (FoldUp amt) = (oldCoords, newCoords)
                                     where
                                         oldCoords = filter ((>amt).fst) coords
-                                        newCoords    = [(amt - (x-amt), y) | (x,y) <-oldCoords]
+                                        newCoords = [(amt - (x-amt), y) | (x,y) <-oldCoords]
 
