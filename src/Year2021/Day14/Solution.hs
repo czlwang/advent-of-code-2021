@@ -1,4 +1,5 @@
 {-# LANGUAGE TupleSections #-}
+{-# LANGUAGE OverloadedLists #-}
 module Year2021.Day14.Solution (solve) where
 import Lib
 import Debug.Trace
@@ -16,16 +17,12 @@ import qualified Data.Map as M
 
 solve :: String -> IO()
 solve root = do
-            print "hello"
             test <- readFile test_path
             input1 <- readFile input1_path
-            print $ parseInput test
-            print $ second (uncurry (solve1 10)) $ parseInput test
+            print $ second ((==1588).uncurry (solve1 10)) $ parseInput test
             print $ second (uncurry (solve1 10)) $ parseInput input1
-            --print $ second ((==17).solve1) $ parseInput test
-            --putStr $ (prettyArray'.solve2) $ fromRight dummy $ parseInput test
-            --putStr "\n"
-            --putStr $ (prettyArray'.solve2) $ fromRight dummy $ parseInput input1
+            print $ second ((==2188189693529).uncurry (solve1 40)) $ parseInput test
+            print $ second (uncurry (solve1 40)) $ parseInput input1
           where
             test_path = root ++ "Day14/test_input1.txt"
             input1_path = root ++ "Day14/input1.txt"
@@ -45,18 +42,34 @@ inputs = do
 
 parseInput = parse inputs "(unknown)"
 
-production rules pair = Data.Maybe.fromMaybe "" (M.lookup pair rules)
+solve1 :: Int -> String -> M.Map String String -> Int
+solve1 n s rules = mostCommon - leastCommon
+                    where
+                        nbrs = zipWith (\x y -> x:"" ++ y:"") s (tail s)
+                        pairs = M.fromList $ (\x -> (head x, length x)) <$> (group .sort) nbrs
+                        counts = M.fromList $ (\x -> (head x, length x)) <$> (group .sort) s
+                        (finalPairs, finalCount) = run n rules pairs counts
+                        sorted = sort $ M.elems finalCount
+                        mostCommon = last sorted
+                        leastCommon = head sorted
 
-solve1 0 s rules = mostCommon - leastCommon
-                    where 
-                        ls = length <$> (group . sort) s
-                        mostCommon = maximum ls
-                        leastCommon = minimum ls
-solve1 n s rules = solve1 (n-1) (step s rules) rules
 
-step :: String -> M.Map String String -> String
-step s rules = result
-        where
-            pairs = zipWith (\x y -> x:"" ++ y:"") s (tail s)
-            prods = concatMap (production rules) pairs
-            result = (concat . transpose) [s, prods]
+run :: Int -> M.Map String String -> M.Map String Int -> M.Map Char Int -> (M.Map String Int, M.Map Char Int)
+run 0 rules finalPairs finalCounts = (finalPairs, finalCounts)
+run n rules pairCounts counts = run (n-1) rules newPairCounts newCounts
+                                where (newPairCounts, newCounts) = step rules pairCounts counts
+
+applyProd :: M.Map String String -> (M.Map String Int, M.Map Char Int) -> (String, Int) -> (M.Map String Int, M.Map Char Int)
+applyProd rules (pairCounts, counts) (pair@[x, y], count) = maybe (pairCounts, counts) updateC found
+                                            where
+                                                found = M.lookup pair rules
+                                                updatePairs' c = M.unionWith (+) pairCounts $ M.fromList [(x:c, count), (c ++ y:"", count)]
+                                                updatePairs c = ix pair %~ flip (-) count $ updatePairs' c
+                                                --updatePairs c = M.unionWith (-) (updatePairs' c) $ M.fromList [(pair, count)]
+                                                updateCount c = M.unionWith (+) counts $ M.fromList [(head c, count)]
+                                                updateC c = (updatePairs c, updateCount c)
+
+applyProd _  _ _ = error "uhoh"
+
+step :: M.Map String String -> M.Map String Int -> M.Map Char Int -> (M.Map String Int, M.Map Char Int)
+step rules pairCounts counts = foldl (applyProd rules) (pairCounts, counts) (M.assocs pairCounts)
