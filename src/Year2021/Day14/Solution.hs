@@ -26,13 +26,10 @@ solve root = do
           where
             test_path = root ++ "Day14/test_input1.txt"
             input1_path = root ++ "Day14/input1.txt"
+            parseInput = parse inputs "(unknown)"
 
 ruleParser :: GenParser Char st (String, String)
-ruleParser = do
-             source <- many1 letter
-             string " -> "
-             dest <- many1 letter
-             return (source, dest)
+ruleParser = (,) <$> (many1 letter <* string " -> ") <*> many1 letter
 
 inputs = do
             start <- many1 letter <* eol
@@ -40,27 +37,24 @@ inputs = do
             rules <- M.fromList <$> endBy ruleParser (void eol <|> eof)
             return (start, rules)
 
-parseInput = parse inputs "(unknown)"
+type RuleSet = M.Map String String
+type Counter a = M.Map a Int
 
-solve1 :: Int -> String -> M.Map String String -> Int
-solve1 n s rules = mostCommon - leastCommon
+solve1 :: Int -> String -> RuleSet -> Int
+solve1 n s rules = last sorted - head sorted
                     where
                         nbrs = zipWith (\x y -> x:"" ++ y:"") s (tail s)
                         list2map l = M.fromList $ (\x -> (head x, length x)) <$> (group.sort) l
-                        pairs  =  list2map nbrs
-                        counts = list2map s
-                        (finalPairs, finalCount) = run n rules pairs counts
+                        (finalPairs, finalCount) = run n rules (list2map nbrs, list2map s)
                         sorted = sort $ M.elems finalCount
-                        mostCommon = last sorted
-                        leastCommon = head sorted
 
-
-run :: Int -> M.Map String String -> M.Map String Int -> M.Map Char Int -> (M.Map String Int, M.Map Char Int)
-run 0 rules finalPairs finalCounts = (finalPairs, finalCounts)
-run n rules pairCounts counts = run (n-1) rules newPairCounts newCounts
+run :: Int -> RuleSet -> (Counter String, Counter Char) -> (Counter String, Counter Char)
+run 0 rules final = final
+run n rules (pairCounts, counts) = run (n-1) rules (newPairCounts, newCounts)
                                 where (newPairCounts, newCounts) = step rules pairCounts counts
+                                      step rules pairCounts counts = foldl (applyProd rules) (pairCounts, counts) (M.assocs pairCounts)
 
-applyProd :: M.Map String String -> (M.Map String Int, M.Map Char Int) -> (String, Int) -> (M.Map String Int, M.Map Char Int)
+applyProd :: M.Map String String -> (Counter String, Counter Char) -> (String, Int) -> (Counter String, Counter Char)
 applyProd rules (pairCounts, counts) (pair@[x, y], count) = maybe (pairCounts, counts) updateC found
                                             where
                                                 found = M.lookup pair rules
@@ -70,6 +64,3 @@ applyProd rules (pairCounts, counts) (pair@[x, y], count) = maybe (pairCounts, c
                                                 updateC c = (updatePairs c, updateCount c)
 
 applyProd _  _ _ = error "uhoh"
-
-step :: M.Map String String -> M.Map String Int -> M.Map Char Int -> (M.Map String Int, M.Map Char Int)
-step rules pairCounts counts = foldl (applyProd rules) (pairCounts, counts) (M.assocs pairCounts)
