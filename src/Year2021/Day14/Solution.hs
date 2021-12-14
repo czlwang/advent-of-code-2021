@@ -46,8 +46,9 @@ solve1 :: Int -> String -> M.Map String String -> Int
 solve1 n s rules = mostCommon - leastCommon
                     where
                         nbrs = zipWith (\x y -> x:"" ++ y:"") s (tail s)
-                        pairs = M.fromList $ (\x -> (head x, length x)) <$> (group .sort) nbrs
-                        counts = M.fromList $ (\x -> (head x, length x)) <$> (group .sort) s
+                        list2map l = M.fromList $ (\x -> (head x, length x)) <$> (group.sort) l
+                        pairs  =  list2map nbrs
+                        counts = list2map s
                         (finalPairs, finalCount) = run n rules pairs counts
                         sorted = sort $ M.elems finalCount
                         mostCommon = last sorted
@@ -65,7 +66,6 @@ applyProd rules (pairCounts, counts) (pair@[x, y], count) = maybe (pairCounts, c
                                                 found = M.lookup pair rules
                                                 updatePairs' c = M.unionWith (+) pairCounts $ M.fromList [(x:c, count), (c ++ y:"", count)]
                                                 updatePairs c = ix pair %~ flip (-) count $ updatePairs' c
-                                                --updatePairs c = M.unionWith (-) (updatePairs' c) $ M.fromList [(pair, count)]
                                                 updateCount c = M.unionWith (+) counts $ M.fromList [(head c, count)]
                                                 updateC c = (updatePairs c, updateCount c)
 
