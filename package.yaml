@@ -27,6 +27,7 @@ dependencies:
 - containers
 - array
 - safe
+- pqueue
 
 library:
   source-dirs: src
