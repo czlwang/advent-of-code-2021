@@ -42,7 +42,7 @@ solve12 rep board = result M.! end
                 initQueue = P.singleton 0 (0,0)
                 result = dkstra board initQueue initDist initVisited (newDim^2) end
 
-getVal board (x,y) = shiftVal --ty newton
+getVal board (x,y) = shiftVal
             where
                 dim = (fst.snd) (A.bounds board) + 1
                 [origX, origY] = (`mod` dim) <$> [x,y]
