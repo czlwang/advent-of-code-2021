@@ -19,10 +19,10 @@ solve :: String -> IO()
 solve root = do
             test <- readFile test_path
             input1 <- readFile input1_path
-            print $ second ((==1588).uncurry (solve1 10)) $ parseInput test
-            print $ second (uncurry (solve1 10)) $ parseInput input1
-            print $ second ((==2188189693529).uncurry (solve1 40)) $ parseInput test
-            print $ second (uncurry (solve1 40)) $ parseInput input1
+            print $ second ((==1588).solve1 10) $ parseInput test
+            print $ second (solve1 10) $ parseInput input1
+            print $ second ((==2188189693529).solve1 40) $ parseInput test
+            print $ second (solve1 40) $ parseInput input1
           where
             test_path = root ++ "Day14/test_input1.txt"
             input1_path = root ++ "Day14/input1.txt"
@@ -40,8 +40,8 @@ inputs = do
 type RuleSet = M.Map String String
 type Counter a = M.Map a Int
 
-solve1 :: Int -> String -> RuleSet -> Int
-solve1 n s rules = last sorted - head sorted
+solve1 :: Int -> (String, RuleSet) -> Int
+solve1 n (s, rules) = last sorted - head sorted
                     where
                         nbrs = zipWith (\x y -> x:"" ++ y:"") s (tail s)
                         list2map l = M.fromList $ (\x -> (head x, length x)) <$> (group.sort) l
