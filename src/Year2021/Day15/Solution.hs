@@ -41,31 +41,26 @@ inputs = list2array <$> endBy ruleParser (void eol <|> eof)
 solve1 = solve12 1
 solve2 = solve12 5
 
-solve12 rep board = trace "call1" result M.! end
+reconstruct :: M.Map Coord (Coord,Int) -> [(Coord, Int)] -> [(Coord, Int)]
+reconstruct bmap ls@(l:lls) | fst l == (0,0) = ls
+                            | otherwise = reconstruct bmap ((bmap M.! fst l):ls)
+reconstruct bmap [] = error "uhoh"
+
+solve12 rep board = trace (show (map snd path, sumPath)) result M.! end
             where
             end = (newDim-1, newDim-1)
-            result = dkstra board (P.singleton (0,0) 0) initDist (M.fromList $ (,False) <$> idxs) (newDim*newDim) rep
-            maxDist = sum (A.elems board)*newDim^2
+            (result, bmap) = dkstra board (P.singleton 0 (0,0)) initDist (M.fromList $ (,False) <$> idxs) (newDim*newDim) rep back
+            maxDist = 10*newDim^2
             dim = (fst.snd) (A.bounds board) + 1
             newDim = rep*dim
             idxs = [(i,j) | i <- [0..newDim-1], j <- [0..newDim-1]]
-            initDist = M.fromList $ (,maxDist) <$> idxs
+            initDist' = M.fromList $ (,maxDist) <$> idxs
+            initDist = M.insert (0,0) 0 initDist'
+            back = M.fromList $ (,((0,0), 0)) <$> idxs
+            path = reconstruct bmap [(end, getCoord board end)]
+            sumPath = sum $ map snd path
 
-
-duplicate n dim (coord, value) = nub res
-                            where (x,y) = coord
-                                  shiftVal i j = ((value+i+j) `mod` 10) + ((value+i+j) `div` 10) `mod` 10
-                                  res = [((x+i*dim, y+j*dim), v) | i <- [0..(n-1)], j<-[0..(n-1)], let v= shiftVal i j]
-
-mkFullMap :: Board -> Int -> Board
-mkFullMap b n =  A.array ((0,0), (newDim-1, newDim-1)) (nub duplicates)
-            where
-                origs = A.assocs b
-                dim = (fst.snd) (A.bounds b) + 1
-                duplicates = concatMap (duplicate n dim) origs
-                newDim = n*dim
-
-getCoord n board (x,y) = shiftVal
+getCoord board (x,y) = shiftVal
             where
                 dim = (fst.snd) (A.bounds board) + 1
                 origX = x `mod` dim
@@ -75,13 +70,18 @@ getCoord n board (x,y) = shiftVal
                 value = board A.! (origX, origY)
                 shiftVal = ((value+i+j) `mod` 10) + ((value+i+j) `div` 10) `mod` 10
 
-dkstra :: Board -> P.MinPQueue Coord Int -> M.Map Coord Int -> M.Map Coord Bool -> Int -> Int -> M.Map Coord Int
-dkstra board queue dist visited nvisited rep | null queue = dist
-                                             | newNVisited==0 = dist
-                                             | otherwise = dkstra board newQueue newDist newVisited newNVisited rep
+dkstra :: Board -> P.MinPQueue Int Coord -> M.Map Coord Int -> M.Map Coord Bool -> Int -> Int -> M.Map Coord (Coord, Int) -> (M.Map Coord Int, M.Map Coord (Coord, Int))
+dkstra board queue dist visited nvisited rep back 
+                                                  | alreadyVisited = dkstra board q' dist visited nvisited rep back
+                                                  | shouldError = error ("uhoh" ++ show coord ++ show val)
+                                                  | null queue = (dist, back)
+                                                  | newNVisited==0 = (dist, back)
+                                                  | otherwise = dkstra board newQueue newDist newVisited newNVisited rep newBmap
                             where
-                                ((coord, val), q') = P.deleteFindMin queue
-                                gCoord = getCoord 1 board
+                                ((val, coord), q') = P.deleteFindMin queue
+                                shouldError = val /= dist M.! coord
+                                alreadyVisited = visited M.! coord
+                                gCoord = getCoord board
                                 getNbrs (m,n) = filter (A.inRange ((0,0),(newDim,newDim))) [(m+i, n+j) | (i,j) <- [(0,1), (1,0), (-1,0), (0,-1)]]
                                 dim = (fst.snd) (A.bounds board) + 1
                                 newDim = rep*dim - 1
@@ -89,5 +89,7 @@ dkstra board queue dist visited nvisited rep | null queue = dist
                                 nbrs = filter (not.(visited M.!)) $ getNbrs coord
                                 alt = [(n,newD) | n <- nbrs, let d = dist M.! n, let newD = gCoord n + val, newD<d]
                                 newDist = foldl' (\acc (x,y) -> M.insert x y acc) dist alt
-                                newQueue = foldl' (\acc (x,y) -> P.insert x y acc) q' alt
+                                newQueue = foldl' (\acc (x,y) -> P.insert y x acc) q' alt
                                 newVisited = M.insert coord True visited
+                                newBacks = [(n, (coord, gCoord coord)) | (n,d) <- alt]
+                                newBmap = foldl' (\acc (x,y) -> M.insert x y acc) back newBacks
