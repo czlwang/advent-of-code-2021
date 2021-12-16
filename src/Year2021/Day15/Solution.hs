@@ -48,7 +48,7 @@ getVal board (x,y) = shiftVal
                 [origX, origY] = (`mod` dim) <$> [x,y]
                 [i, j] = (`div` dim) <$> [x,y]
                 value = board A.! (origX, origY)
-                shiftVal = ((value+i+j) `mod` 10) + (((value+i+j) `div` 10) `mod` 10)
+                shiftVal = ((value-1+i+j) `mod` 9) + 1
 
 dkstra :: Board -> P.MinPQueue Int Coord -> M.Map Coord Int -> M.Map Coord Bool -> Int -> Coord -> M.Map Coord Int
 dkstra board queue dist visited unvisited bnds | unvisited==0 = dist
