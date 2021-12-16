@@ -74,14 +74,13 @@ operatorString = do
                  return $ Operator header packets
 
 eval Literal{..} = literalValue
-eval Operator{..} 
-       | op==0 = sum     body
-       | op==1 = product body
-       | op==2 = minimum body
-       | op==3 = maximum body
-       | op==5 = if head body >  last body then 1 else 0
-       | op==6 = if head body <  last body then 1 else 0
-       | op==7 = if head body == last body then 1 else 0
-       | otherwise = error "uhoh"
-       where op = typeID operatorHeader 
-             body = eval <$> operatorPackets
+eval Operator{..} = case op of 0 -> sum     body
+                               1 -> product body
+                               2 -> minimum body
+                               3 -> maximum body
+                               5 -> if head body >  last body then 1 else 0
+                               6 -> if head body <  last body then 1 else 0
+                               7 -> if head body == last body then 1 else 0
+                               _ -> error "uhoh"
+                               where op = typeID operatorHeader 
+                                     body = eval <$> operatorPackets
