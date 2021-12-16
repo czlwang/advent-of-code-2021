@@ -28,17 +28,10 @@ solve2 hex = second eval p
 solve1 hex = second sumVNums p
         where p = parse packetString "uhoh" $ hex2bin hex
 
-data Header = Header {headerRawVersion :: String,
-                      headerVersion :: Int,
-                      typeRawID :: String,
-                      typeID :: Int} deriving Show
+data Header = Header {headerVersion :: Int, typeID :: Int} deriving Show
 
-data Packet =   Literal  {literalHeader :: Header,
-                          literalRawValue :: String,
-                          literalValue :: Int}
-              | Operator {operatorHeader :: Header,
-                          operatorLengthTypeId :: Int,
-                          operatorPackets :: [Packet]} deriving Show
+data Packet =   Literal  {literalHeader :: Header, literalValue :: Int}
+              | Operator {operatorHeader :: Header, operatorPackets :: [Packet]} deriving Show
 
 sumVNums Literal  {..} = headerVersion literalHeader
 sumVNums Operator {..} = headerVersion operatorHeader + sum (sumVNums <$> operatorPackets)
@@ -46,7 +39,7 @@ sumVNums Operator {..} = headerVersion operatorHeader + sum (sumVNums <$> operat
 inputs :: GenParser Char st String
 inputs = many1 alphaNum <* (void eol <|> eof)
 
-mkHeader rawVersion rawID = Header rawVersion (bin2dec rawVersion) rawID (bin2dec rawID)
+mkHeader rawVersion rawID = Header (bin2dec rawVersion) (bin2dec rawID)
 
 literalString :: GenParser Char st Packet
 literalString = do rawVersion <- count 3 digit
@@ -55,7 +48,7 @@ literalString = do rawVersion <- count 3 digit
                    remaining <- many (char '1' *> count 4 digit)
                    last <- char '0' *> count 4 digit
                    let rawValue = concat remaining ++ last
-                   return $ Literal header rawValue (bin2dec rawValue)
+                   return $ Literal header (bin2dec rawValue)
 
 packetString :: GenParser Char st Packet
 packetString = try literalString <|> operatorString
@@ -77,9 +70,8 @@ operatorString = do
                  rawVersion <- count 3 digit
                  rawId <- count 3 digit
                  let header = mkHeader rawVersion rawId
-                 lengthType <- digitToInt <$> lookAhead digit
                  packets <- try type1String <|> type0String
-                 return $ Operator header lengthType packets
+                 return $ Operator header packets
 
 eval Literal{..} = literalValue
 eval Operator{..} 
