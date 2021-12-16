@@ -10,12 +10,28 @@ module Lib
       eol,
       rowSum2d,
       colSum2d,
-      prettyArray
+      prettyArray,
+      bin2dec,
+      hex2bin
     ) where
 
 import Data.Array
 import Text.ParserCombinators.Parsec
 import Data.List
+import Data.Char
+import qualified Data.Map as M
+
+hex2bin bs = hex2bin' bs ""
+hex2bin' []     hs = hs
+hex2bin' (b:bs) hs = hex2bin' bs (hs ++ (hexMap M.! b))
+        where
+            hexMap = M.fromList [('0', "0000"), ('1', "0001"), ('2', "0010"), ('3', "0011"), ('4', "0100"),
+                                 ('5', "0101"), ('6', "0110"), ('7', "0111"), ('8', "1000"), ('9', "1001"),
+                                 ('A', "1010"), ('B', "1011"), ('C', "1100"), ('D', "1101"), ('E', "1110"),
+                                 ('F', "1111")]
+
+bin2dec s = sum [2^(n-i) * digitToInt (s !! i) | i<-[0..n]]
+            where n = length s - 1
 
 someFunc :: IO ()
 someFunc = putStrLn "someFunc"
