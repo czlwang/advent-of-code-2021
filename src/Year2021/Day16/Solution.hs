@@ -1,4 +1,3 @@
-{-# LANGUAGE TupleSections #-}
 {-# LANGUAGE RecordWildCards #-}
 module Year2021.Day16.Solution (solve) where
 import Lib
@@ -10,7 +9,6 @@ import Data.Either
 
 solve :: String -> IO()
 solve root = do
-            print "hello"
             test <- readFile test_path
             input1 <- readFile input1_path
             print $ second (==1) $ solve2 $ fromRight "" $ parseInput "9C0141080250320F1802104A08"
@@ -44,10 +42,10 @@ mkHeader rawVersion rawID = Header (bin2dec rawVersion) (bin2dec rawID)
 literalString :: GenParser Char st Packet
 literalString = do rawVersion <- count 3 digit
                    rawId <- string "100"
-                   let header = mkHeader rawVersion rawId
                    remaining <- many (char '1' *> count 4 digit)
                    last <- char '0' *> count 4 digit
                    let rawValue = concat remaining ++ last
+                       header = mkHeader rawVersion rawId
                    return $ Literal header (bin2dec rawValue)
 
 packetString :: GenParser Char st Packet
@@ -55,8 +53,8 @@ packetString = try literalString <|> operatorString
 
 type1String :: GenParser Char st [Packet]
 type1String = do char '1'
-                 length <- bin2dec <$> count 11 digit
-                 count length packetString
+                 len <- bin2dec <$> count 11 digit
+                 count len packetString
 
 type0String :: GenParser Char st [Packet]
 type0String = do char '0'
@@ -69,8 +67,8 @@ operatorString :: GenParser Char st Packet
 operatorString = do
                  rawVersion <- count 3 digit
                  rawId <- count 3 digit
-                 let header = mkHeader rawVersion rawId
                  packets <- try type1String <|> type0String
+                 let header = mkHeader rawVersion rawId
                  return $ Operator header packets
 
 eval Literal{..} = literalValue
