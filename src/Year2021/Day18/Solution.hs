@@ -13,6 +13,7 @@ import qualified Data.Set as S
 solve :: String -> IO()
 solve root = do
             test <- readFile test_path
+            test2 <- readFile test_path2
             input1 <- readFile input1_path
             print $ parseInput test
             print "hello"
@@ -24,18 +25,31 @@ solve root = do
             print $ testF split "[[[[0,7],4],[15,[0,13]]],[1,1]]" "[[[[0,7],4],[[7,8],[0,13]]],[1,1]]"
             print $ testF split "[[[[0,7],4],[[7,8],[0,13]]],[1,1]]" "[[[[0,7],4],[[7,8],[0,[6,7]]]],[1,1]]"
             print $ testF split "[[[[0,7],4],[[7,8],[0,13]]],[1,1]]" "[[[[0,7],4],[[7,8],[0,[6,7]]]],[1,1]]"
-            --print $ second solve1 $ parseInput input1
+            print $ second ((==4140).solve1) $ parseInput test
+            print $ second solve1 $ parseInput input1
+            print $ second ((==143).magnitude.head) $ parseInput "[[1,2],[[3,4],5]]"
+            print $ testAdd "[[[[4,3],4],4],[7,[[8,4],9]]]" "[1,1]" "[[[[0,7],4],[[7,8],[6,0]]],[8,1]]"
             --print $ second ((==45).solve1) $ parseInput test
             --print $ second ((==112).solve2) $ parseInput test
             --print $ second solve2 $ parseInput input1
           where
             test_path = root ++ "Day18/test_input1.txt"
+            test_path2 = root ++ "Day18/test_input2.txt"
             input1_path = root ++ "Day18/input1.txt"
             parseInput = parse inputs "(unknown)"
             testF f s1 s2 = parseInput s2 == second (map f) (parseInput s1)
+            dummy = Regular 1
+            unwrap s = head $ fromRight [dummy] $ parseInput s
+            testAdd s1 s2 s3 = trace (show $ reduce (add (unwrap s1) (unwrap s2))) unwrap s3 == reduce (add (unwrap s1) (unwrap s2))
 
 data Snail = Pair {snailL :: Snail, snailR :: Snail} | Regular Int deriving (Show, Eq)
 
+solve1 :: [Snail] -> Int
+solve1 ss = trace (show ss) magnitude $ foldl1 (\acc s -> reduce (add acc s)) ss
+--solve1 = foldl1 (\acc s -> reduce (add acc s))
+
+magnitude (Regular x) = x
+magnitude (Pair left right) = 3*magnitude left + 2*magnitude right
 snailPair :: GenParser Char st Snail
 snailPair = do
             left <- try snailRegular <|> snailNum
