@@ -29,6 +29,9 @@ solve root = do
             print $ second solve1 $ parseInput input1
             print $ second ((==143).magnitude.head) $ parseInput "[[1,2],[[3,4],5]]"
             print $ testAdd "[[[[4,3],4],4],[7,[[8,4],9]]]" "[1,1]" "[[[[0,7],4],[[7,8],[6,0]]],[8,1]]"
+            print $ second solve2 $ parseInput input1
+            print $ second solve2 $ parseInput test
+            print $ second ((==3993).solve2) $ parseInput test
             --print $ second ((==45).solve1) $ parseInput test
             --print $ second ((==112).solve2) $ parseInput test
             --print $ second solve2 $ parseInput input1
@@ -40,13 +43,19 @@ solve root = do
             testF f s1 s2 = parseInput s2 == second (map f) (parseInput s1)
             dummy = Regular 1
             unwrap s = head $ fromRight [dummy] $ parseInput s
-            testAdd s1 s2 s3 = trace (show $ reduce (add (unwrap s1) (unwrap s2))) unwrap s3 == reduce (add (unwrap s1) (unwrap s2))
+            testAdd s1 s2 s3 = unwrap s3 == sreduce (add (unwrap s1) (unwrap s2))
 
 data Snail = Pair {snailL :: Snail, snailR :: Snail} | Regular Int deriving (Show, Eq)
 
 solve1 :: [Snail] -> Int
-solve1 ss = trace (show ss) magnitude $ foldl1 (\acc s -> reduce (add acc s)) ss
---solve1 = foldl1 (\acc s -> reduce (add acc s))
+solve1 ss = magnitude $ foldl1 (\acc s -> sreduce (add acc s)) ss
+
+solve2 :: [Snail] -> Int
+solve2 ss = maximum $ magnitude.sreduce <$> allPairs
+            where allPairs = [add s1 s2 | i<-[0..length ss-1], 
+                                          j<-[0..length ss-1], 
+                                          i/=j, 
+                                          let s1 = ss !! i, let s2 = ss !! j]
 
 magnitude (Regular x) = x
 magnitude (Pair left right) = 3*magnitude left + 2*magnitude right
@@ -131,9 +140,9 @@ split' (Pair left right) | splitLeft = (splitLeft, Pair newLeft right)
                               (splitLeft, newLeft) = split' left
                               (splitRight, newRight) = split' right
 
-reduce s | exploded = reduce explodedS
-         | didSplit = reduce splitS
-         | otherwise = s
+sreduce s | exploded = sreduce explodedS
+          | didSplit = sreduce splitS
+          | otherwise = s
          where
               explodedS = explode s
               exploded = explodedS /= s
