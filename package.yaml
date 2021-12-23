@@ -28,6 +28,7 @@ dependencies:
 - array
 - safe
 - pqueue
+- fast-arithmetic
 
 library:
   source-dirs: src

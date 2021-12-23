@@ -41,6 +41,12 @@ packages:
 #   commit: e7b331f14bcffb8367cd58fbfc8b40ec7642100a
 #
 # extra-deps: []
+extra-deps:
+  - fast-arithmetic-0.6.5.1@sha256:2c376e2944a524fbaf27a4ebf5c58cc9be1e46d9c1544a242bd6370c229a4fa1,3817
+  - combinat-0.2.10.0@sha256:adc1dbb532b048e419374e9e89dc4f92c47758300ffe8534a54849266706e53b,5318
+  - hgmp-0.1.2@sha256:a8e47457cf5567f1906540cbb6c3f6b8a75860b58b379e88aa33c07cc9e3741d,2372
+  - compact-word-vectors-0.2.0.2@sha256:e46c7c3186dafe1ae22434556ddec91af022f2360c57c30a46397758938f3acc,2617
+
 
 # Override default flag values for local packages and extra-deps
 # flags: {}

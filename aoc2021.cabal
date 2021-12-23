@@ -45,6 +45,7 @@ library
       Year2021.Day16.Solution
       Year2021.Day17.Solution
       Year2021.Day18.Solution
+      Year2021.Day19.Solution
   other-modules:
       Paths_aoc2021
   hs-source-dirs:
@@ -53,6 +54,7 @@ library
       array
     , base >=4.7 && <5
     , containers
+    , fast-arithmetic
     , lens
     , parsec
     , pqueue
@@ -72,6 +74,7 @@ executable aoc2021-exe
     , array
     , base >=4.7 && <5
     , containers
+    , fast-arithmetic
     , lens
     , parsec
     , pqueue
@@ -92,6 +95,7 @@ test-suite aoc2021-test
     , array
     , base >=4.7 && <5
     , containers
+    , fast-arithmetic
     , lens
     , parsec
     , pqueue
