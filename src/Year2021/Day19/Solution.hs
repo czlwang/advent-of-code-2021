@@ -17,22 +17,8 @@ solve :: String -> IO()
 solve root = do
             test <- readFile test_path
             input1 <- readFile input1_path
-            let testInput = unwrap $ parseInput test
-                map1 = mkRotateScannerMap (testInput !! 1)
-                --rotation = [2,-3,-1]
-                --rotation = [1,2,3]
-                rotation = [-3,1,-2]
-                delta = [88, 113, -1104]
-                delta' = [-113, -1104, 88]
-                rotated = map1 M.! rotation
-                canonical = testInput !! 4
-            --print $ parseInput test
-            --print $ findMatchRotate canonical rotation rotated
-            print $ M.keys map1
-            print $ findMatchDelta canonical rotated delta'
-            print $ findMatchDelta canonical rotated delta
-            print $ findMatch map1 canonical
             print $ second (mkTransformMap.mkMatchMap) $ parseInput test
+            print $ second solve1 $ parseInput test
           where
             test_path = root ++ "Day19/test_input1.txt"
             input1_path = root ++ "Day19/input1.txt"
@@ -41,8 +27,13 @@ solve root = do
 
 type Beacon = [Int]
 type Scanner = [Beacon]
-type Axes = [Int]
 type Offset = [Int]
+
+newtype Rotation = Rotation [Int] deriving (Ord, Show)
+instance Eq Rotation where
+    Rotation a == Rotation b = a == b
+instance Semigroup Rotation where
+     Rotation a <> Rotation b = Rotation (rotate a b)
 
 inputCoord :: GenParser Char st Int
 inputCoord = read <$> many1 (char '-' <|> digit)
@@ -56,30 +47,39 @@ blockLines = manyTill (noneOf "\n") eol *> endBy inputLine eol
 inputs :: GenParser Char st [Scanner]
 inputs = endBy blockLines (void eol <|> eof)
 
-mkTransformMap matchMap = mkTransformMap' matchMap S.empty (0, [0,0,0], [1,2,3])
+solve1 :: [Scanner] -> Int
+solve1 scanners = length $ S.unions absolute
+        where 
+            transformMap = S.toList $ (mkTransformMap.mkMatchMap) scanners
+            transformScanner s offset rotation  = offsetCoord offset <$> rotateScanner rotation s
+            absolute = [S.fromList (transformScanner s o r) | (sID, o, r) <- transformMap, let s = scanners !! sID]
 
-mkTransformMap' :: M.Map Int [(Int, Offset, Axes)] -> S.Set (Int, Offset, Axes) -> (Int, Offset, Axes) -> S.Set (Int, Offset, Axes)
-mkTransformMap' matchMap transformMap (sID, offset, rotation) | sID `S.member` visitedIDs = transformMap
-                                                              | otherwise = newSet
+mkTransformMap matchMap = mkTransformMap' matchMap S.empty (0, [0,0,0], Rotation [1,2,3])
+
+mkTransformMap' :: M.Map Int [(Int, Offset, Rotation)] -> S.Set (Int, Offset, Rotation) -> (Int, Offset, Rotation) -> S.Set (Int, Offset, Rotation)
+mkTransformMap' matchMap transforms (sID, offset, rotation) | sID `S.member` visitedIDs = transforms
+                                                            | otherwise = newSet
                                                              where
-                                                                visitedIDs = S.map (\(x,_,_)->x) transformMap
+                                                                visitedIDs = S.map (\(x,_,_)->x) transforms
                                                                 children = matchMap M.! sID
                                                                 transformed = transformChild <$> children
-                                                                transformMap' = S.insert (sID, offset, rotation) transformMap
-                                                                newSet = foldl (mkTransformMap' matchMap) transformMap' transformed
-                                                                transformChild (x, childOffset, childRotation) = (x, offsetCoord (rotateBeacon rotation childOffset) offset, rotateBeacon rotation childRotation)
+                                                                transforms' = S.insert (sID, offset, rotation) transforms
+                                                                newSet = foldl (mkTransformMap' matchMap) transforms' transformed
+                                                                newOffset cOffset = offsetCoord (rotateBeacon rotation cOffset) offset
+                                                                newRotation cRotation = rotation <> cRotation
+                                                                transformChild (x, cOffset, cRotation) = (x, newOffset cOffset, newRotation cRotation)
 
-mkMatchMap :: [Scanner] -> M.Map Int [(Int, Offset, Axes)]
+mkMatchMap :: [Scanner] -> M.Map Int [(Int, Offset, Rotation)]
 mkMatchMap scans = M.fromList pairings
                     where
                         maps = mkRotateScannerMap <$> scans
                         sIDs = [0..length scans-1]
                         pairings = [(i, scanMatches i) | i<-sIDs]
-                        scanMatches i = [(j, offset, axes) | j<-sIDs,
+                        scanMatches i = [(j, offset, rotation) | j<-sIDs,
                                                              i/=j,
                                                              let map = maps !! j
                                                                  scan = scans !! i
-                                                                 (score,offset,axes) = findMatch map scan,
+                                                                 (score,offset,rotation) = findMatch map scan,
                                                              score >= 12]
 
 findMatchDelta :: Scanner -> Scanner -> [Int] -> Int
@@ -93,52 +93,51 @@ findMatchDelta origin other d = length intersection
 offsetCoord :: Beacon -> Beacon -> Beacon
 offsetCoord = zipWith (+)
 
-findMatchRotate :: Scanner -> Axes -> Scanner -> (Int, Offset, Axes)
+findMatchRotate :: Scanner -> Rotation -> Scanner -> (Int, Offset, Rotation)
 --findMatchRotate origin axes other = if bestScore < 12 then result else trace (show axes) result
 --findMatchRotate origin axes other = trace (show deltas) result
-findMatchRotate origin axes other = result
+findMatchRotate origin rotation other = result
             where
                 bIDs = [0..length origin-1]
                 deltas = [zipWith (-) b1 b2 | b1<-origin, b2<-other]
                 matches = findMatchDelta origin other <$> deltas
                 (bestScore, bestOffset) = maximumBy (comparing fst) $ zip matches deltas
-                result = (bestScore, bestOffset, axes)
+                result = (bestScore, bestOffset, rotation)
 
-findMatch :: M.Map Axes Scanner -> Scanner -> (Int, Offset, Axes)
+findMatch :: M.Map Rotation Scanner -> Scanner -> (Int, Offset, Rotation)
 findMatch rotatedMap scan = maximumBy (comparing getFirst) $ uncurry (findMatchRotate scan) <$> M.assocs rotatedMap
                                 where
                                     getFirst (x,_,_) = x
 
-rotateBeacon :: [Int] -> Beacon -> Beacon
-rotateBeacon axes beacon = zipWith (*) signed shifted
+getOrder :: [Int] -> [Int]
+getOrder rotation = flip (-) 1.abs <$> rotation
+
+getDirections :: [Int] -> [Int]
+getDirections rotation = signum <$> rotation
+
+rotateBeacon :: Rotation -> Beacon -> Beacon
+rotateBeacon (Rotation rotation) = rotate rotation
+
+rotate rotater rotatee = zipWith (*) directions permuted
                         where
-                              unsigned = flip (-) 1.abs <$> axes
-                              shifted = (beacon !!) <$> unsigned
-                              signed = signum <$> axes
+                              unsigned = getOrder rotater
+                              permuted = (rotatee !!) <$> unsigned
+                              directions = getDirections rotater
 
-rotateScanner :: Axes -> Scanner -> Scanner
-rotateScanner axes scanner = rotateBeacon axes <$> scanner
+rotateScanner :: Rotation -> Scanner -> Scanner
+rotateScanner rotation scanner = rotateBeacon rotation <$> scanner
 
-mkRotateScannerMap :: Scanner -> M.Map Axes Scanner
-mkRotateScannerMap s = M.fromList [(a, rotateScanner a s) | a <- axes]
+
+mkRotateScannerMap :: Scanner -> M.Map Rotation Scanner
+mkRotateScannerMap s = M.fromList [(r, rotateScanner r s) | r <- rotations]
                      where
-                         xFace = [[1,2,3], [2,3,1], [3,1,2]]
+                         xFace = Rotation <$> [[1,2,3], [2,3,1], [3,1,2]]
                          invertedXFace = invertFace <$> xFace
-                         axes = (xFace ++ invertedXFace) >>= rotateYZ
+                         rotations = (xFace ++ invertedXFace) >>= rotateYZ
 
-rotateYZ :: Beacon -> [Beacon]
-rotateYZ [x, y, z] = [[x,y,z], [x,-z,y], [x,-y,-z], [x,z,-y]]
+rotateYZ :: Rotation -> [Rotation]
+rotateYZ (Rotation [x, y, z]) = Rotation <$> [[x,y,z], [x,-z,y], [x,-y,-z], [x,z,-y]]
 rotateYZ _ = error "uhoh"
 
-invertFace [x,y,z] = [-x,z,y]
+invertFace (Rotation [x,y,z]) = Rotation [-x,z,y]
 invertFace _ = error "uhoh"
-
-{-
- - (x,y,z)  | (x,-z,y)  (x,-y,-z)  (x,z,-y)
- - (-x,z,y) | (-x,-y,z) (-x,-z,-y) (-x,y,-z)
- - (y,z,x)
- - (-y,x,z)
- - (z,x,y)
- - (-z,y,x) | (2,1), (-1,-2), (2,-1)
- - (-3,2,1) | (-1,2), (-2,-1), (1,-2)
- -}
