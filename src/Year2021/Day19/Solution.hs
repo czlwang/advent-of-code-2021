@@ -17,14 +17,14 @@ solve :: String -> IO()
 solve root = do
             test <- readFile test_path
             input1 <- readFile input1_path
-            print $ second (mkTransformMap.mkMatchMap) $ parseInput test
-            print $ second solve1 $ parseInput test
+            print $ second ((==79).solve1) $ parseInput test
             print $ second solve1 $ parseInput input1
+            print $ second ((==3621).solve2) $ parseInput test
+            print $ second solve2 $ parseInput input1
           where
             test_path = root ++ "Day19/test_input1.txt"
             input1_path = root ++ "Day19/input1.txt"
             parseInput = parse inputs "(unknown)"
-            unwrap a = fromRight [] a
 
 type Beacon = [Int]
 type Scanner = [Beacon]
@@ -53,6 +53,13 @@ solve1 scanners = length $ S.unions absolute
             transformMap = S.toList $ (mkTransformMap.mkMatchMap) scanners
             transformScanner s offset rotation  = offsetCoord offset <$> rotateScanner rotation s
             absolute = [S.fromList (transformScanner s o r) | (sID, o, r) <- transformMap, let s = scanners !! sID]
+
+solve2 :: [Scanner] -> Int
+solve2 scanners = maximum [manhattan a b | a <- offsets, b <- offsets]
+        where 
+            transformMap = S.toList $ (mkTransformMap.mkMatchMap) scanners
+            offsets = [o | (_,o,_) <- transformMap]
+            manhattan a b = sum $ abs <$> zipWith (-) a b
 
 mkTransformMap matchMap = mkTransformMap' matchMap S.empty (0, [0,0,0], Rotation [1,2,3])
 
@@ -122,7 +129,6 @@ rotate rotater rotatee = zipWith (*) directions permuted
 
 rotateScanner :: Rotation -> Scanner -> Scanner
 rotateScanner rotation scanner = rotateBeacon rotation <$> scanner
-
 
 mkRotateScannerMap :: Scanner -> M.Map Rotation Scanner
 mkRotateScannerMap s = M.fromList [(r, rotateScanner r s) | r <- rotations]
