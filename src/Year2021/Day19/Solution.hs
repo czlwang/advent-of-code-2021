@@ -19,6 +19,7 @@ solve root = do
             input1 <- readFile input1_path
             print $ second (mkTransformMap.mkMatchMap) $ parseInput test
             print $ second solve1 $ parseInput test
+            print $ second solve1 $ parseInput input1
           where
             test_path = root ++ "Day19/test_input1.txt"
             input1_path = root ++ "Day19/input1.txt"
@@ -28,7 +29,6 @@ solve root = do
 type Beacon = [Int]
 type Scanner = [Beacon]
 type Offset = [Int]
-
 newtype Rotation = Rotation [Int] deriving (Ord, Show)
 instance Eq Rotation where
     Rotation a == Rotation b = a == b
@@ -83,8 +83,6 @@ mkMatchMap scans = M.fromList pairings
                                                              score >= 12]
 
 findMatchDelta :: Scanner -> Scanner -> [Int] -> Int
---findMatchDelta origin other d = if length intersection < 12 then length intersection else trace (show d) length intersection
---findMatchDelta origin other d = trace (show origin ++ "\n" ++ show other ++ "\n" ++ show d) length intersection
 findMatchDelta origin other d = length intersection
                     where
                         offset = offsetCoord d <$> other
@@ -94,8 +92,6 @@ offsetCoord :: Beacon -> Beacon -> Beacon
 offsetCoord = zipWith (+)
 
 findMatchRotate :: Scanner -> Rotation -> Scanner -> (Int, Offset, Rotation)
---findMatchRotate origin axes other = if bestScore < 12 then result else trace (show axes) result
---findMatchRotate origin axes other = trace (show deltas) result
 findMatchRotate origin rotation other = result
             where
                 bIDs = [0..length origin-1]
