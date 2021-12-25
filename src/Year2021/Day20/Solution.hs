@@ -1,17 +1,12 @@
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE TupleSections #-}
 module Year2021.Day20.Solution (solve) where
-import Debug.Trace
 import Lib
 import Text.ParserCombinators.Parsec
 import Data.Bifunctor
 import Control.Monad
 import qualified Data.Map as M
 import qualified Data.Set as S
-import Numeric.Combinatorics
-import Data.List
-import Data.Ord
-import Data.Either
 
 solve :: String -> IO()
 solve root = do
@@ -34,8 +29,7 @@ inLine :: GenParser Char st [Int]
 inLine = map char2int <$> many1 (oneOf "#.")
 
 inputs :: GenParser Char st ([Int], [[Int]])
-inputs = do 
-            alg <- concat <$> endBy inLine eol
+inputs = do alg <- concat <$> endBy inLine eol
             eol
             image <- endBy inLine (void eol <|> eof)
             return (alg, image)
