@@ -19,6 +19,8 @@ solve root = do
             input1 <- readFile input1_path
             print $ second ((==35).solve1) $ parseInput test
             print $ second solve1 $ parseInput input1
+            print $ second ((==3351).solve2) $ parseInput test
+            print $ second solve2 $ parseInput input1
           where
             test_path = root ++ "Day20/test_input1.txt"
             input1_path = root ++ "Day20/input1.txt"
@@ -38,7 +40,10 @@ inputs = do
             image <- endBy inLine (void eol <|> eof)
             return (alg, image)
 
-solve1 (alg, image) = (length.M.filter (==1).fst) $ run 2 (mkTrackedMap image, 0) alg
+solve1 = solve12 2
+solve2 = solve12 50
+
+solve12 n (alg, image) = (length.M.filter (==1).fst) $ run n (mkTrackedMap image, 0) alg
 
 mkTrackedMap :: [[Int]] -> M.Map (Int, Int) Int
 mkTrackedMap nums = M.fromList [((i,j), e) | i <- [0..length nums-1],
