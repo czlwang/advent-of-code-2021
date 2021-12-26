@@ -18,7 +18,6 @@ solve :: String -> IO()
 solve root = do
             test <- readFile test_path
             input1 <- readFile input1_path
-            print $ parseInput test
             print $ second ((==739785).solve1) $ parseInput test
             print $ second solve1 $ parseInput input1
             print $ second ((==444356092776315).solve2) $ parseInput test
