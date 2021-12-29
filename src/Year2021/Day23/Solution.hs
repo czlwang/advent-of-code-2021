@@ -26,7 +26,7 @@ solve root = do
             print test2
             print $ parseInput test2
             --print $ second solve1 $ parseInput test2
-            print $ second solve1 $ parseInput test
+            print $ second solve1 $ parseInput test2
             --print $ second solve1 $ parseInput input1
             --print $ second ((==2758514936282235).solve2) $ parseInput test3
             --print $ second solve2 $ parseInput input1
@@ -62,7 +62,7 @@ followBP bp h accum | h `M.notMember` bp = (h,-1):accum
                         where (next, cost) = bp M.! h
 
 diff hx hy = (head.S.toList) (x `S.difference` y)
-            where 
+            where
                   x = hallSnails hx
                   y = hallSnails hy
 
@@ -83,7 +83,7 @@ solve1 hallState = distances M.! winningState
                where
                 depth = hallDepth hallState
                 winningState = mkWinningState depth
-                distances = dkstra (P.singleton 0 hallState) M.empty S.empty
+                distances = dkstra (P.singleton 0 hallState) M.empty S.empty depth
 
 nextStatus = M.fromList [(Stop1, [Stop1, Move1, Stop3]),
                          (Move1, [Move1, Stop2]),
@@ -92,11 +92,11 @@ nextStatus = M.fromList [(Stop1, [Stop1, Move1, Stop3]),
                          (Stop3, [Stop3])]
 
 --inBounds (a, b) | b == 0 && a >= 0 && a < 11 = trace ("coord " ++ show (a,b)) True
-inBounds (a, b) | b == 0 && a >= 0 && a < 11 = True
+inBounds (a, b) depth | b == 0 && a >= 0 && a < 11 = True
 --                | b `elem` [1,2] && a `elem` [2,4,6,8] = trace ("coord " ++ show (a,b)) True
-                | b `elem` [1,2] && a `elem` [2,4,6,8] = True
+                      | b <= depth && a `elem` [2,4,6,8] = True
 --                | otherwise = trace ("otherwise " ++ show (a,b)) False
-                | otherwise = False
+                      | otherwise = False
 
 getCoord (SnailState (_, _, x, y)) = (x,y)
 getStatus (SnailState (_, status, _, _)) = status
@@ -104,7 +104,7 @@ getStatus (SnailState (_, status, _, _)) = status
 notOutsideRoom s@(SnailState (name, status, x, y)) = (x,y) `notElem` [(2,0), (4,0), (6,0), (8,0)]
 
 insideRoom s@(SnailState (name, status, x, y)) hall = (x,y) `elem` rooms
-                                                    where 
+                                                    where
                                                         rooms = targetRooms s hall
 
 insideOtherRoom s@(SnailState (name, status, x, y)) hall = not (insideRoom s hall) && notInHallway
@@ -113,25 +113,27 @@ insideOtherRoom s@(SnailState (name, status, x, y)) hall = not (insideRoom s hal
 inHallway s@(SnailState (name, status, x, y)) = y==0
 
 targetRooms :: SnailState -> HallState -> [(Int, Int)]
-targetRooms s@(SnailState (name, status, x, y)) hall = [(x,y) | y<-[1..depth]] 
+targetRooms s@(SnailState (name, status, x, y)) hall = [(x,y) | y<-[1..depth]]
                                                     where
                                                        depth = hallDepth hall
                                                        xIdx = fromMaybe 0 $ elemIndex name "ABCD"
                                                        x = 2*(xIdx+1)
-
 
 getTargetPath s@(SnailState (name, status, x, y)) hall = assembledPath
                                                 where
                                                     h = hallSnails hall
                                                     targetX = (fst.head) (targetRooms s hall)
                                                     hallPath = if not (insideRoom s hall) then zip (getRange x targetX) (replicate 12 0) else []
-                                                    bottomOfTargetRoom = fromMaybe 'E' $ queryPosition hall (targetX,2)
-                                                    intoRoom = if bottomOfTargetRoom==name then [(targetX,1)] else [(targetX,1),(targetX,2)]
-                                                    outOfRoom = [(x,1) | y==2]
+                                                    others = S.toList $ h `S.difference` S.fromList [s]
+                                                    otherCoords = getCoord <$> others
+                                                    unoccupied coord = coord `notElem` otherCoords
+                                                    intoTarget = targetRooms s hall
+                                                    intoRoom = takeWhile unoccupied intoTarget
+                                                    outOfRoom = [(x,j) | j<-[y..0]]
                                                     assembledPath = nub $ hallPath ++ intoRoom ++ outOfRoom ++ [(x,y)]
 
 getRange start end = if start < end then [start..end] else [end..start]
---pathClear s@(SnailState (name, status, x, y)) hall = trace ("checking path clear " ++ show targetPath ++ " " ++ show s ++ " " ++ show hall) null pathBlocked && targetAvailable s hall
+--pathClear s@(SnailState (name, status, x, y)) hall = trace ("checking path clear " ++ show targetPath ++ " " ++ show s ++ " " ++ show hall ++ "\n" ++ prettyPrint hall) null pathBlocked && targetAvailable s hall
 pathClear s@(SnailState (name, status, x, y)) hall = null pathBlocked && targetAvailable s hall
                                                             where
                                                                 h = hallSnails hall
@@ -150,17 +152,30 @@ targetAvailable s@(SnailState (name, status, x, y)) hall = not (null empties) &&
                                                                                                  Nothing -> True) fulls
 
 --movingIntoOccupied s@(SnailState (name,_,x,y)) h = insideRoom s && name /= queryPosition h (x,2)
-movingIntoOccupied s@(SnailState (name,_,x,y)) h = False
+movingIntoOccupied s@(SnailState (name,_,x,y)) oldS hall = inHallway oldS && insideRoom s hall && not (targetAvailable s hall)
+
 movingIntoOtherRoom s oldS hall | insideOtherRoom oldS hall = False
                                 | otherwise = insideOtherRoom s hall
+
+--deviatingFromPath s oldS hall = trace ("deviation path" ++ show path) coord `notElem` path
+deviatingFromPath s oldS hall = coord `notElem` path
+                            where
+                                path = getTargetPath oldS hall
+                                coord = getCoord s
+
+backtracking s oldS = getCoord s == getCoord oldS
 
 validateSnailState :: HallState -> SnailState -> SnailState -> Bool
 validateSnailState h oldS s = case status of Stop1 -> True
                                              --Move1 -> trace ("Move1 " ++ show s ++ " " ++ show oldS) (not (movingIntoOtherRoom s oldS)) && not (movingIntoOccupied s h)
-                                             Move1 -> not (movingIntoOtherRoom s oldS h) && not (movingIntoOccupied s h)
+                                             Move1 -> not (movingIntoOtherRoom s oldS h) && not (movingIntoOccupied s oldS h) 
+                                                      && not (backtracking s oldS)
                                              Stop2 -> inHallway s && notOutsideRoom s && not (insideOtherRoom s h) --TODO no blocking
-                                             Move2 -> not (insideOtherRoom s h) && not (movingIntoOccupied s h)
-                                             Stop3 -> insideRoom s h
+--                                             Move2 -> trace ("Move2 " ++ show (not (insideOtherRoom s h)) ++ show (not (movingIntoOccupied s h)) ++ show (not (deviatingFromPath s oldS h))) not (insideOtherRoom s h) && not (movingIntoOccupied s h) && not (deviatingFromPath s oldS h)
+                                             Move2 -> not (insideOtherRoom s h) && not (movingIntoOccupied s oldS h)
+                                                      && not (deviatingFromPath s oldS h) 
+                                                      && pathClear s h
+                                             Stop3 -> shouldStay s h
                         where
                             (SnailState (name, status, x, y)) = s
 
@@ -179,7 +194,7 @@ queryPosition hall (a,b) = safeHead atCoord
 
 mkWinningState depth = HallState (S.fromList snails) depth
                 where
-                    snails = do 
+                    snails = do
                                 y <- [1..depth]
                                 (c,x) <- zip "ABCD" [2,4..8]
                                 return $ SnailState (c,Stop3,x,y)
@@ -205,15 +220,16 @@ validateHallState hall = ((move1s*move2s == 0) && move1s <= 1 && move2s <= 1) &&
                                     move1s = countStatus Move1
                                     move2s = countStatus Move2
 
-shouldStay s@(SnailState (name, _, x, y)) h = insideRoom s h && (y == 2 || lowerOccupant)
+shouldStay s@(SnailState (name, _, x, y)) h = insideRoom s h && lowerOccupants
                                             where
-                                                c = fromMaybe 'E' $ queryPosition h (x,2)
-                                                lowerOccupant = name == c
+                                                depth = hallDepth h
+                                                belowInRoom = fromMaybe 'E' . queryPosition h <$> [(x,i) | i<-[y..depth]]
+                                                lowerOccupants = all (==name) belowInRoom
 
 nextSnailState :: HallState -> SnailState -> [(Int, HallState)]
 --nextSnailState hall snailState  | shouldStay snailState hall = trace (show "shouldStay " ++ show snailState) [(0, reachedDestState)]
 nextSnailState hall snailState | shouldStay snailState hall = [(0, reachedDestState)]
---                                              | otherwise = trace ("otherwise validStates " ++ show snailState ++ " " ++ show validStates) validHallStates
+--                                              | otherwise = trace ("otherwise validStates \n hallstate \n" ++ prettyPrint hall ++ "\n" ++ show snailState ++ " " ++ show validStates ++ "\n validhallStates \n" ++ concat (prettyPrint.snd <$> validHallStates)) validHallStates
                                | otherwise = validHallStates
                                         where
                                             h = hallSnails hall
@@ -225,7 +241,7 @@ nextSnailState hall snailState | shouldStay snailState hall = [(0, reachedDestSt
 --                                            possMove = [trace (show newCoord) newCoord | i<-[-1,0,1], j<-[-1,0,1], (i,j) /= (0,0),
                                             possMove = [newCoord | (i,j) <- [(0,1),(0,-1), (-1,0), (1,0)],
                                                                      let newCoord = (x+i,y+j),
-                                                                     inBounds newCoord,
+                                                                     inBounds newCoord depth,
                                                                      newCoord `notElem` otherCoords]
 --                                            possStates = trace ("possStatus " ++ show possStatus ++ " possMove " ++ show possMove) possStatus >>= (\status -> if status `elem` [Stop1, Stop2, Stop3] then
                                             possStates = possStatus >>= (\status -> if status `elem` [Stop1, Stop2, Stop3] then
@@ -255,8 +271,9 @@ movingOnClearPath hall = onClear
             where
                 h = hallSnails hall
                 snails = S.toList h
-                hasClearPath = filter (`pathClear` hall) snails
-                onClear = safeHead hasClearPath >>= (\m -> if pathClear m hall then
+                --hasClearPath = filter (`pathClear` hall) snails
+                moving = filter (\s -> getStatus s `elem` [Move1, Move2]) snails
+                onClear = safeHead moving >>= (\m -> if pathClear m hall then
 --                                                         trace ("path clear " ++ show hall ++ " " ++ show (pathClear m hall) ++ " " ++ show m) Just (m, getTargetPath m hall)
                                                          Just (m, getTargetPath m hall)
                                                      else
@@ -287,7 +304,7 @@ stillMoving (Just (s, path)) hall = case currentlyMoving of Nothing -> False
                         currentlyMoving = safeHead moving
 
 nextState :: HallState -> [(Int, HallState)]
---nextState hall = trace ("snails " ++ show staySnails ++ " next states " ++ show (nub nextStates) ++ " next states' " ++ show (nub nextStates')) nub nextStates
+--nextState hall = trace ("snails " ++ show staySnails ++ "\n nextState orig \n" ++ prettyPrint hall ++ "\n next states \n" ++ concat (prettyPrint.snd <$> nub nextStates) ++ " next states' \n" ++ concat (prettyPrint.snd <$> nub nextStates')) nub nextStates
 nextState hall = nub nextStates
 --nextState hall = snails >>= nextSnailState hall
             where
@@ -299,32 +316,37 @@ nextState hall = nub nextStates
                                                                      else s) snails
                 stayHall = HallState (S.fromList staySnails) depth
                 nextStates' = staySnails >>= nextSnailState stayHall
-                nextStates = filter (\(c,hState) -> stillOnPath (movingOnClearPath hall) hState) nextStates'
+                nextStates = nextStates'
+                --nextStates = filter (\(c,hState) -> stillOnPath (movingOnClearPath hall) hState) nextStates'
 
-allStatesCC c = [SnailState (c, s, x, y) | y<-[0,1,2], x<-[0..12], s <- [Move1, Move2, Stop1, Stop2, Stop3]]
-allStatesC c = [[x,y] | x <- allStatesCC c, y<- allStatesCC c]
-cartProduct :: [[a]] -> [[a]] -> [[a]]
-cartProduct x y = [c ++ b| c <- x, b <- y]
-allStates = map (HallState . S.fromList) $ foldr1 cartProduct $ allStatesC <$> "ABCD"
+prettyPrint hall = concat figure ++ "\n\n"
+                where
+                    h = hallSnails hall
+                    d = hallDepth hall
+                    first = [fromMaybe '.' (queryPosition hall (j,0)) | j<-[0..10]] ++ "\n"
+                    mkRow i = concat [fromMaybe '.' (queryPosition hall (j,i)):"#" | j<-[2,4..8]]
+                    rows = [" #" ++ mkRow i ++ "\n" | i <- [1..d]]
+                    figure = first:rows
 
-dkstra :: P.MinPQueue Int HallState -> M.Map HallState Int -> S.Set HallState -> M.Map HallState Int
-dkstra queue dist visited | winningState `S.member` visited = dist
-                          | hall `S.member` visited = trace "already visisted" dkstra q' dist visited
-                          | otherwise = trace (show $ length visited) dkstra newQueue newDist newVisited
---                          | otherwise = trace (show $ length visited) M.empty
+
+dkstra :: P.MinPQueue Int HallState -> M.Map HallState Int -> S.Set HallState -> Int -> M.Map HallState Int
+dkstra queue dist visited d | winningState `S.member` visited = dist
+                            | hall `S.member` visited = trace "already visisted" dkstra q' dist visited d
+                            | otherwise = trace (show $ length visited) dkstra newQueue newDist newVisited d
+--                            | otherwise = trace (show (length visited) ++ "orig \n" ++ prettyPrint hall ++ "\n alt \n" ++ concat (prettyPrint.fst <$> alt)) dkstra newQueue newDist newVisited d
                         where
                             ((val, hall), q') = P.deleteFindMin queue
-                            winningState = mkWinningState depth
+                            winningState = mkWinningState d --TODO
                             depth = hallDepth hall
                             nbrs = nextState hall
---                            alt = trace (show nbrs) [(n,newD) | (edgeDist, n) <- nbrs,
+--                            alt = trace ("hall \n" ++ prettyPrint hall ++ "\n nbrs \n" ++ concat (prettyPrint.snd <$> nbrs) ++ show hall) [(n,newD) | (edgeDist, n) <- nbrs,
                             alt = [(n,newD) | (edgeDist, n) <- nbrs,
---                            alt = [(n,newD) | (edgeDist, n) <- nbrs,
-                                              let newD = edgeDist + val
-                                                  d = M.findWithDefault (newD+1) n dist,
-                                              newD<d,
-                                              n /= hall, --TODO
-                                              n `S.notMember` visited]
+                                          let newD = edgeDist + val
+                                              d = M.findWithDefault (newD+1) n dist,
+                                          newD<d,
+                                          n /= hall, --TODO
+                                          n `S.notMember` visited]
+--                            newDist  = trace ("val " ++ show val ++ " alt " ++ show (snd <$> alt) ++ " edge dist " ++ show (fst <$> nbrs)) foldl' (\acc (x,y) -> M.insert x y acc) dist alt
                             newDist  = trace ("val " ++ show val ++ " alt " ++ show (snd <$> alt) ++ " edge dist " ++ show (fst <$> nbrs)) foldl' (\acc (x,y) -> M.insert x y acc) dist alt
 --                            newDist  = foldl' (\acc (x,y) -> M.insert x y acc) dist alt
                             newQueue = foldl' (\acc (x,y) -> P.insert y x acc) q' alt
