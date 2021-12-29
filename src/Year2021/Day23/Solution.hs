@@ -21,13 +21,12 @@ solve :: String -> IO()
 solve root = do
             test <- readFile test_path
             test2 <- readFile test_path2
-            test3 <- readFile test_path3
             input1 <- readFile input1_path
             --print "hello"
             print test2
-            print $ parseInput test3
-            print $ second solve1 $ parseInput test3
-            --print $ second solve1 $ parseInput test
+            print $ parseInput test2
+            --print $ second solve1 $ parseInput test2
+            print $ second solve1 $ parseInput test
             --print $ second solve1 $ parseInput input1
             --print $ second ((==2758514936282235).solve2) $ parseInput test3
             --print $ second solve2 $ parseInput input1
@@ -251,7 +250,7 @@ nextSnailState hall snailState | shouldStay snailState hall = [(0, reachedDestSt
                                             validHallStates = [(c,h) | (c,v) <- weightedStates,
 --                                            validHallStates = [(c,h) | (c,v) <- weightedStates,
                                                              let h = HallState (S.fromList (v:others)) depth,
-                                                             validateHallState hall]
+                                                             validateHallState h]
                                             reachedDestState = HallState (S.fromList (SnailState (name, Stop3, x, y):others)) depth
 
 safeHead xs = case xs of [] -> Nothing
