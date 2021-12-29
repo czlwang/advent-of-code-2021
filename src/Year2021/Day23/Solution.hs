@@ -103,34 +103,28 @@ getStatus (SnailState (_, status, _, _)) = status
 
 notOutsideRoom s@(SnailState (name, status, x, y)) = (x,y) `notElem` [(2,0), (4,0), (6,0), (8,0)]
 
-insideRoom s@(SnailState (name, status, x, y)) = case name of 'A' -> (x,y) `elem` [(2,1), (2,2)]
-                                                              'B' -> (x,y) `elem` [(4,1), (4,2)]
-                                                              'C' -> (x,y) `elem` [(6,1), (6,2)]
-                                                              'D' -> (x,y) `elem` [(8,1), (8,2)]
-                                                              _   -> error "uhoh"
+insideRoom s@(SnailState (name, status, x, y)) hall = (x,y) `elem` rooms
+                                                    where 
+                                                        rooms = targetRooms s hall
 
-insideOtherRoom s@(SnailState (name, status, x, y)) = case name of 'A' -> (x,y) `notElem` [(2,1), (2,2)] && notInHallway
-                                                                   'B' -> (x,y) `notElem` [(4,1), (4,2)] && notInHallway
-                                                                   'C' -> (x,y) `notElem` [(6,1), (6,2)] && notInHallway
-                                                                   'D' -> (x,y) `notElem` [(8,1), (8,2)] && notInHallway
-                                                                   _   -> error "uhoh"
+insideOtherRoom s@(SnailState (name, status, x, y)) hall = not (insideRoom s hall) && notInHallway
                                                                    where notInHallway = y/=0
 
 inHallway s@(SnailState (name, status, x, y)) = y==0
 
-targetRooms :: SnailState -> [(Int, Int)]
-targetRooms s@(SnailState (name, status, x, y)) = case name of 'A' -> [(2,1), (2,2)]
-                                                               'B' -> [(4,1), (4,2)]
-                                                               'C' -> [(6,1), (6,2)]
-                                                               'D' -> [(8,1), (8,2)]
-                                                               _   -> error "uhoh"
+targetRooms :: SnailState -> HallState -> [(Int, Int)]
+targetRooms s@(SnailState (name, status, x, y)) hall = [(x,y) | y<-[1..depth]] 
+                                                    where
+                                                       depth = hallDepth hall
+                                                       xIdx = fromMaybe 0 $ elemIndex name "ABCD"
+                                                       x = 2*(xIdx+1)
 
 
 getTargetPath s@(SnailState (name, status, x, y)) hall = assembledPath
                                                 where
                                                     h = hallSnails hall
-                                                    targetX = (fst.head) (targetRooms s)
-                                                    hallPath = if not (insideRoom s) then zip (getRange x targetX) (replicate 12 0) else []
+                                                    targetX = (fst.head) (targetRooms s hall)
+                                                    hallPath = if not (insideRoom s hall) then zip (getRange x targetX) (replicate 12 0) else []
                                                     bottomOfTargetRoom = fromMaybe 'E' $ queryPosition hall (targetX,2)
                                                     intoRoom = if bottomOfTargetRoom==name then [(targetX,1)] else [(targetX,1),(targetX,2)]
                                                     outOfRoom = [(x,1) | y==2]
@@ -148,7 +142,7 @@ pathClear s@(SnailState (name, status, x, y)) hall = null pathBlocked && targetA
 
 
 targetAvailable s@(SnailState (name, status, x, y)) hall = not (null empties) && goodOccupants
-                                                                where queries = queryPosition hall <$> targetRooms s
+                                                                where queries = queryPosition hall <$> targetRooms s hall
                                                                       h = hallSnails hall
                                                                       empties = filter isNothing queries
                                                                       fulls = filter isJust queries
@@ -157,16 +151,16 @@ targetAvailable s@(SnailState (name, status, x, y)) hall = not (null empties) &&
 
 --movingIntoOccupied s@(SnailState (name,_,x,y)) h = insideRoom s && name /= queryPosition h (x,2)
 movingIntoOccupied s@(SnailState (name,_,x,y)) h = False
-movingIntoOtherRoom s oldS | insideOtherRoom oldS = False
-                           | otherwise = insideOtherRoom s
+movingIntoOtherRoom s oldS hall | insideOtherRoom oldS hall = False
+                                | otherwise = insideOtherRoom s hall
 
 validateSnailState :: HallState -> SnailState -> SnailState -> Bool
 validateSnailState h oldS s = case status of Stop1 -> True
                                              --Move1 -> trace ("Move1 " ++ show s ++ " " ++ show oldS) (not (movingIntoOtherRoom s oldS)) && not (movingIntoOccupied s h)
-                                             Move1 -> not (movingIntoOtherRoom s oldS) && not (movingIntoOccupied s h)
-                                             Stop2 -> inHallway s && notOutsideRoom s && not (insideOtherRoom s) --TODO no blocking
-                                             Move2 -> not (insideOtherRoom s) && not (movingIntoOccupied s h)
-                                             Stop3 -> insideRoom s
+                                             Move1 -> not (movingIntoOtherRoom s oldS h) && not (movingIntoOccupied s h)
+                                             Stop2 -> inHallway s && notOutsideRoom s && not (insideOtherRoom s h) --TODO no blocking
+                                             Move2 -> not (insideOtherRoom s h) && not (movingIntoOccupied s h)
+                                             Stop3 -> insideRoom s h
                         where
                             (SnailState (name, status, x, y)) = s
 
@@ -211,7 +205,7 @@ validateHallState hall = ((move1s*move2s == 0) && move1s <= 1 && move2s <= 1) &&
                                     move1s = countStatus Move1
                                     move2s = countStatus Move2
 
-shouldStay s@(SnailState (name, _, x, y)) h = insideRoom s && (y == 2 || lowerOccupant)
+shouldStay s@(SnailState (name, _, x, y)) h = insideRoom s h && (y == 2 || lowerOccupant)
                                             where
                                                 c = fromMaybe 'E' $ queryPosition h (x,2)
                                                 lowerOccupant = name == c
