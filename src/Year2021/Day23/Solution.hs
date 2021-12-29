@@ -117,13 +117,14 @@ targetRooms s@(SnailState (name, status, x, y)) = case name of 'A' -> [(2,1), (2
                                                                _   -> error "uhoh"
 
 
-getTargetPath s@(SnailState (name, status, x, y)) hall@(HallState h) = nub $ hallPath ++ intoRoom ++ outOfRoom ++ [(x,y)]
+getTargetPath s@(SnailState (name, status, x, y)) hall@(HallState h) = assembledPath
                                                 where
                                                     targetX = (fst.head) (targetRooms s)
                                                     hallPath = if not (insideRoom s) then zip (getRange x targetX) (replicate 12 0) else []
                                                     bottomOfTargetRoom = fromMaybe 'E' $ queryPosition hall (targetX,2)
                                                     intoRoom = if bottomOfTargetRoom==name then [(targetX,1)] else [(targetX,1),(targetX,2)]
                                                     outOfRoom = [(x,1) | y==2]
+                                                    assembledPath = nub $ hallPath ++ intoRoom ++ outOfRoom ++ [(x,y)]
 
 getRange start end = if start < end then [start..end] else [end..start]
 --pathClear s@(SnailState (name, status, x, y)) hall@(HallState h) = trace ("checking path clear " ++ show targetPath ++ " " ++ show s ++ " " ++ show hall) null pathBlocked && targetAvailable s hall
@@ -180,7 +181,7 @@ winningState = HallState (S.fromList [SnailState ('A', Stop3, 2, 1),
 
 blocking hall s1 s2 = getCoord s1 `elem` s2path && getCoord s2 `elem` s1path
                     where
-                        s1path = getTargetPath s1 hall 
+                        s1path = getTargetPath s1 hall
                         s2path = getTargetPath s2 hall
 
 hallBlocking hall@(HallState h) = or pairs
@@ -244,8 +245,8 @@ movingOnClearPath :: HallState -> Maybe (SnailState, [(Int, Int)])
 movingOnClearPath hall@(HallState h) = onClear
             where
                 snails = S.toList h
-                moving = filter (\s -> getStatus s `elem` [Move1, Move2]) snails
-                onClear = safeHead moving >>= (\m -> if pathClear m hall then
+                hasClearPath = filter (`pathClear` hall) snails
+                onClear = safeHead hasClearPath >>= (\m -> if pathClear m hall then
 --                                                         trace ("path clear " ++ show hall ++ " " ++ show (pathClear m hall) ++ " " ++ show m) Just (m, getTargetPath m hall)
                                                          Just (m, getTargetPath m hall)
                                                      else
@@ -294,7 +295,7 @@ allStates = map (HallState . S.fromList) $ foldr1 cartProduct $ allStatesC <$> "
 
 dkstra :: P.MinPQueue Int HallState -> M.Map HallState Int -> S.Set HallState -> M.Map HallState Int
 dkstra queue dist visited | winningState `S.member` visited = dist
-                          | hall `S.member` visited = trace "already visisted" dkstra q' dist visited 
+                          | hall `S.member` visited = trace "already visisted" dkstra q' dist visited
                           | otherwise = trace (show $ length visited) dkstra newQueue newDist newVisited
 --                          | otherwise = trace (show $ length visited) M.empty
                         where
