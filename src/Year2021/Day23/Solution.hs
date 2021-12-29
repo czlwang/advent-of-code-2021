@@ -25,7 +25,8 @@ solve root = do
             --print "hello"
             --print $ parseInput test
             print $ second solve1 $ parseInput test2
-           -- print $ second solve1 $ parseInput input1
+            --print $ second solve1 $ parseInput test
+            --print $ second solve1 $ parseInput input1
             --print $ second ((==2758514936282235).solve2) $ parseInput test3
             --print $ second solve2 $ parseInput input1
           where
@@ -148,7 +149,8 @@ movingIntoOtherRoom s oldS | insideOtherRoom oldS = False
 
 validateSnailState :: HallState -> SnailState -> SnailState -> Bool
 validateSnailState h oldS s = case status of Stop1 -> True
-                                             Move1 -> trace ("Move1 " ++ show s ++ " " ++ show oldS) (not (movingIntoOtherRoom s oldS)) && not (movingIntoOccupied s h)
+                                             --Move1 -> trace ("Move1 " ++ show s ++ " " ++ show oldS) (not (movingIntoOtherRoom s oldS)) && not (movingIntoOccupied s h)
+                                             Move1 -> not (movingIntoOtherRoom s oldS) && not (movingIntoOccupied s h)
                                              Stop2 -> inHallway s && notOutsideRoom s && not (insideOtherRoom s) --TODO no blocking
                                              Move2 -> not (insideOtherRoom s) && not (movingIntoOccupied s h)
                                              Stop3 -> insideRoom s
@@ -176,7 +178,18 @@ winningState = HallState (S.fromList [SnailState ('A', Stop3, 2, 1),
                                       SnailState ('D', Stop3, 8, 1),
                                       SnailState ('D', Stop3, 8, 2)])
 
-validateHallState (HallState h) = (move1s*move2s == 0) && move1s <= 1 && move2s <= 1
+blocking hall s1 s2 = getCoord s1 `elem` s2path && getCoord s2 `elem` s1path
+                    where
+                        s1path = getTargetPath s1 hall 
+                        s2path = getTargetPath s2 hall
+
+hallBlocking hall@(HallState h) = or pairs
+                            where
+                                snails = S.toList h
+                                stop2s = filter ((==Stop2).getStatus) snails
+                                pairs = [blocking hall s1 s2 | s1 <- stop2s, s2 <- stop2s, s1/=s2]
+
+validateHallState hall@(HallState h) = ((move1s*move2s == 0) && move1s <= 1 && move2s <= 1) && not (hallBlocking hall)
                                 where
                                     snails = S.toList h
                                     statuses = getStatus <$> snails
@@ -214,7 +227,8 @@ nextSnailState hall@(HallState h) snailState  | shouldStay snailState hall = [(0
                                             validStates = filter (validateSnailState hall snailState) possStates
 --                                            validStates = filter (validateSnailState hall) possStates
                                             --weightedStates = zip (weighState <$> validStates) validStates
-                                            weightedStates = trace ("validStates " ++ show validStates) zip (weighState <$> validStates) validStates
+--                                            weightedStates = trace ("validStates " ++ show validStates) zip (weighState <$> validStates) validStates
+                                            weightedStates = zip (weighState <$> validStates) validStates
 --                                            validHallStates = trace ("weightedStates " ++ show weightedStates) [(c,h) | (c,v) <- weightedStates,
 --                                            validHallStates = trace ("weights " ++ show (fst <$> weightedStates)) [(c,h) | (c,v) <- weightedStates,
                                             validHallStates = [(c,h) | (c,v) <- weightedStates,
@@ -252,7 +266,8 @@ stillOnPath j@(Just (s, path)) hall@(HallState h) = stillMoving j hall || stoppe
 stillMoving :: Maybe (SnailState, [(Int, Int)]) -> HallState -> Bool
 stillMoving Nothing hall = True
 stillMoving (Just (s, path)) hall@(HallState h) = case currentlyMoving of Nothing -> False
-                                                                          Just s2 -> trace (show "stillMoving " ++ show s ++ " " ++ show s2 ++ " " ++ show (onPath s2 path) ++ " " ++ show path) onPath s2 path && (getName s == getName s2)
+--                                                                          Just s2 -> trace (show "stillMoving " ++ show s ++ " " ++ show s2 ++ " " ++ show (onPath s2 path) ++ " " ++ show path) onPath s2 path && (getName s == getName s2)
+                                                                          Just s2 -> onPath s2 path && (getName s == getName s2)
                     where
                         snails = S.toList h
                         moving = filter (\s -> getStatus s `elem` [Move1, Move2]) snails
@@ -285,7 +300,8 @@ dkstra queue dist visited bp | winningState `S.member` visited = (dist, bp) --TO
                         where
                             ((val, hall), q') = P.deleteFindMin queue
                             nbrs = nextState hall
-                            alt = trace (show nbrs) [(n,newD) | (edgeDist, n) <- nbrs,
+--                            alt = trace (show nbrs) [(n,newD) | (edgeDist, n) <- nbrs,
+                            alt = [(n,newD) | (edgeDist, n) <- nbrs,
 --                            alt = [(n,newD) | (edgeDist, n) <- nbrs,
                                               let newD = edgeDist + val
                                                   d = M.findWithDefault (newD+1) n dist,
@@ -298,7 +314,7 @@ dkstra queue dist visited bp | winningState `S.member` visited = (dist, bp) --TO
                                               n /= hall,
                                               newD<d,
                                               n `S.notMember` visited]
-                            newDist  = trace ("alt " ++ show (snd <$> alt) ++ "edge dist " ++ show (fst <$> nbrs)) foldl' (\acc (x,y) -> M.insert x y acc) dist alt
+                            newDist  = trace ("val " ++ show val ++ " alt " ++ show (snd <$> alt) ++ " edge dist " ++ show (fst <$> nbrs)) foldl' (\acc (x,y) -> M.insert x y acc) dist alt
 --                            newDist  = foldl' (\acc (x,y) -> M.insert x y acc) dist alt
                             newQueue = foldl' (\acc (x,y) -> P.insert y x acc) q' alt
                             newBP  = foldl' (\acc (x,y) -> M.insert x y acc) bp alt'
