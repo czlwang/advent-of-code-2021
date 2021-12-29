@@ -72,9 +72,9 @@ getPath bp = (getDiffs hs, costs)
 --solve1 hallState = distances -- distances M.! winningState
 --solve1 hallState = trace (show distances) distances M.! winningState
 --solve1 hallState = distances M.! winningState
-solve1 hallState = trace (show (getPath bp)) distances M.! winningState
+solve1 hallState = distances M.! winningState
                where
-                (distances, bp) = dkstra (P.singleton 0 hallState) M.empty S.empty M.empty
+                distances = dkstra (P.singleton 0 hallState) M.empty S.empty
 
 nextStatus = M.fromList [(Stop1, [Stop1, Move1, Stop3]),
                          (Move1, [Move1, Stop2]),
@@ -292,10 +292,10 @@ cartProduct :: [[a]] -> [[a]] -> [[a]]
 cartProduct x y = [c ++ b| c <- x, b <- y]
 allStates = map (HallState . S.fromList) $ foldr1 cartProduct $ allStatesC <$> "ABCD"
 
-dkstra :: P.MinPQueue Int HallState -> M.Map HallState Int -> S.Set HallState -> M.Map HallState (HallState, Int) -> (M.Map HallState Int, M.Map HallState (HallState, Int))
-dkstra queue dist visited bp | winningState `S.member` visited = (dist, bp) --TODO throw away seen states immediately
-                             | hall `S.member` visited = trace "already visisted" dkstra q' dist visited bp
-                             | otherwise = trace (show $ length visited) dkstra newQueue newDist newVisited newBP
+dkstra :: P.MinPQueue Int HallState -> M.Map HallState Int -> S.Set HallState -> M.Map HallState Int
+dkstra queue dist visited | winningState `S.member` visited = dist
+                          | hall `S.member` visited = trace "already visisted" dkstra q' dist visited 
+                          | otherwise = trace (show $ length visited) dkstra newQueue newDist newVisited
 --                          | otherwise = trace (show $ length visited) M.empty
                         where
                             ((val, hall), q') = P.deleteFindMin queue
@@ -308,14 +308,7 @@ dkstra queue dist visited bp | winningState `S.member` visited = (dist, bp) --TO
                                               newD<d,
                                               n /= hall, --TODO
                                               n `S.notMember` visited]
-                            alt' = [(n,(hall, edgeDist)) | (edgeDist, n) <- nbrs,
-                                              let newD = edgeDist + val
-                                                  d = M.findWithDefault (newD+1) n dist,
-                                              n /= hall,
-                                              newD<d,
-                                              n `S.notMember` visited]
                             newDist  = trace ("val " ++ show val ++ " alt " ++ show (snd <$> alt) ++ " edge dist " ++ show (fst <$> nbrs)) foldl' (\acc (x,y) -> M.insert x y acc) dist alt
 --                            newDist  = foldl' (\acc (x,y) -> M.insert x y acc) dist alt
                             newQueue = foldl' (\acc (x,y) -> P.insert y x acc) q' alt
-                            newBP  = foldl' (\acc (x,y) -> M.insert x y acc) bp alt'
                             newVisited = S.insert hall visited
