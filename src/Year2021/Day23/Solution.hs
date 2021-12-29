@@ -21,10 +21,12 @@ solve :: String -> IO()
 solve root = do
             test <- readFile test_path
             test2 <- readFile test_path2
+            test3 <- readFile test_path3
             input1 <- readFile input1_path
             --print "hello"
-            --print $ parseInput test
-            print $ second solve1 $ parseInput test2
+            print test2
+            print $ parseInput test3
+            print $ second solve1 $ parseInput test3
             --print $ second solve1 $ parseInput test
             --print $ second solve1 $ parseInput input1
             --print $ second ((==2758514936282235).solve2) $ parseInput test3
@@ -32,27 +34,27 @@ solve root = do
           where
             test_path = root ++ "Day23/test_input1.txt"
             test_path2 = root ++ "Day23/test_input2.txt"
+            test_path3 = root ++ "Day23/test_input3.txt"
             input1_path = root ++ "Day23/input1.txt"
             parseInput = parse inputs "(unknown)"
 
-inputs :: GenParser Char st HallState
+delim = (many (noneOf "\n") <* eol <* many1 (char ' ') <* char '#') <|> many anyChar
+letterRow = endBy1 letter (char '#')
+
 inputs = do
             count 2 (many1 (noneOf "\n") <* eol) <* count 3 anyChar
-            row11 <- endBy letter (char '#')
-            many1 (noneOf "\n") <* eol <* many1 (char ' ') <* char '#'
-            row22 <-  endBy letter (char '#')
+            rows <- endBy letterRow delim
             let
---                row1 = trace (show row11) $ zip [2,4,6,8] (replicate 4 1)
-                row1 = zip [2,4,6,8] (replicate 4 1)
---                row2 = trace (show row22) $ zip [2,4,6,8] (replicate 4 2)
-                row2 = zip [2,4,6,8] (replicate 4 2)
-            return $ mkInputs (zip row11 row1 ++ zip row22 row2)
+                rows2 = [zip [2,4..8] (replicate 4 i) | i <- [1..4]]
+            return $ trace (show rows2 ++ " " ++ show rows) mkInputs $ concat (zipWith zip rows rows2)
 
 data SnailStatus = Stop1 | Move1 | Stop2 | Move2 | Stop3 deriving (Eq, Ord, Show)
 newtype SnailState = SnailState (Char, SnailStatus, Int, Int) deriving (Eq, Ord, Show)
-newtype HallState = HallState (S.Set SnailState) deriving (Eq, Ord, Show)
+data HallState = HallState {hallSnails :: S.Set SnailState,
+                            hallDepth :: Int} deriving (Eq, Ord, Show)
 
-mkInputs parsed = HallState (S.fromList [SnailState (c, Stop1, x, y) | (c, (x,y)) <- parsed])
+mkInputs parsed = HallState (S.fromList [SnailState (c, Stop1, x, y) | (c, (x,y)) <- parsed]) depth
+                where depth = maximum $ snd.snd <$> parsed
 
 followBP :: M.Map HallState (HallState, Int) -> HallState -> [(HallState, Int)] -> [(HallState, Int)]
 followBP bp h accum | h `M.notMember` bp = (h,-1):accum
@@ -60,11 +62,17 @@ followBP bp h accum | h `M.notMember` bp = (h,-1):accum
                     | otherwise = followBP bp next ((h,cost):accum)
                         where (next, cost) = bp M.! h
 
+diff hx hy = (head.S.toList) (x `S.difference` y)
+            where 
+                  x = hallSnails hx
+                  y = hallSnails hy
+
 getDiffs hs = zipWith diff (drop 1 hs) hs
-            where diff (HallState x) (HallState y) = (head.S.toList) (x `S.difference` y)
 
 getPath bp = (getDiffs hs, costs)
             where
+                depth = hallDepth $ head hs
+                winningState = mkWinningState depth
                 bps = followBP bp winningState []
                 hs = fst <$> bps
                 costs = snd <$> bps
@@ -74,6 +82,8 @@ getPath bp = (getDiffs hs, costs)
 --solve1 hallState = distances M.! winningState
 solve1 hallState = distances M.! winningState
                where
+                depth = hallDepth hallState
+                winningState = mkWinningState depth
                 distances = dkstra (P.singleton 0 hallState) M.empty S.empty
 
 nextStatus = M.fromList [(Stop1, [Stop1, Move1, Stop3]),
@@ -117,8 +127,9 @@ targetRooms s@(SnailState (name, status, x, y)) = case name of 'A' -> [(2,1), (2
                                                                _   -> error "uhoh"
 
 
-getTargetPath s@(SnailState (name, status, x, y)) hall@(HallState h) = assembledPath
+getTargetPath s@(SnailState (name, status, x, y)) hall = assembledPath
                                                 where
+                                                    h = hallSnails hall
                                                     targetX = (fst.head) (targetRooms s)
                                                     hallPath = if not (insideRoom s) then zip (getRange x targetX) (replicate 12 0) else []
                                                     bottomOfTargetRoom = fromMaybe 'E' $ queryPosition hall (targetX,2)
@@ -127,17 +138,19 @@ getTargetPath s@(SnailState (name, status, x, y)) hall@(HallState h) = assembled
                                                     assembledPath = nub $ hallPath ++ intoRoom ++ outOfRoom ++ [(x,y)]
 
 getRange start end = if start < end then [start..end] else [end..start]
---pathClear s@(SnailState (name, status, x, y)) hall@(HallState h) = trace ("checking path clear " ++ show targetPath ++ " " ++ show s ++ " " ++ show hall) null pathBlocked && targetAvailable s hall
-pathClear s@(SnailState (name, status, x, y)) hall@(HallState h) = null pathBlocked && targetAvailable s hall
+--pathClear s@(SnailState (name, status, x, y)) hall = trace ("checking path clear " ++ show targetPath ++ " " ++ show s ++ " " ++ show hall) null pathBlocked && targetAvailable s hall
+pathClear s@(SnailState (name, status, x, y)) hall = null pathBlocked && targetAvailable s hall
                                                             where
+                                                                h = hallSnails hall
                                                                 listStates = S.toList h
                                                                 occupied = getCoord <$> filter (/= s) listStates
                                                                 targetPath = getTargetPath s hall
                                                                 pathBlocked = S.fromList targetPath `S.intersection` S.fromList occupied
 
 
-targetAvailable s@(SnailState (name, status, x, y)) hall@(HallState h) = not (null empties) && goodOccupants
+targetAvailable s@(SnailState (name, status, x, y)) hall = not (null empties) && goodOccupants
                                                                 where queries = queryPosition hall <$> targetRooms s
+                                                                      h = hallSnails hall
                                                                       empties = filter isNothing queries
                                                                       fulls = filter isJust queries
                                                                       goodOccupants = all (\case Just n -> n==name
@@ -166,32 +179,33 @@ weighState s@(SnailState (name, status, x, y)) = case status of Stop1 -> 0
                                                                                   'D' -> 1000
                                                                                   _   -> error "uhoh"
 
-queryPosition (HallState h) (a,b) = safeHead atCoord
+queryPosition hall (a,b) = safeHead atCoord
                                     where
+                                        h = hallSnails hall
                                         atCoord = [c | s@(SnailState (c,_,x,y)) <- S.toList h, (x,y)==(a,b)]
 
-winningState = HallState (S.fromList [SnailState ('A', Stop3, 2, 1),
-                                      SnailState ('A', Stop3, 2, 2),
-                                      SnailState ('B', Stop3, 4, 1),
-                                      SnailState ('B', Stop3, 4, 2),
-                                      SnailState ('C', Stop3, 6, 1),
-                                      SnailState ('C', Stop3, 6, 2),
-                                      SnailState ('D', Stop3, 8, 1),
-                                      SnailState ('D', Stop3, 8, 2)])
+mkWinningState depth = HallState (S.fromList snails) depth
+                where
+                    snails = do 
+                                y <- [1..depth]
+                                (c,x) <- zip "ABCD" [2,4..8]
+                                return $ SnailState (c,Stop3,x,y)
 
 blocking hall s1 s2 = getCoord s1 `elem` s2path && getCoord s2 `elem` s1path
                     where
                         s1path = getTargetPath s1 hall
                         s2path = getTargetPath s2 hall
 
-hallBlocking hall@(HallState h) = or pairs
+hallBlocking hall = or pairs
                             where
+                                h = hallSnails hall
                                 snails = S.toList h
                                 stop2s = filter ((==Stop2).getStatus) snails
                                 pairs = [blocking hall s1 s2 | s1 <- stop2s, s2 <- stop2s, s1/=s2]
 
-validateHallState hall@(HallState h) = ((move1s*move2s == 0) && move1s <= 1 && move2s <= 1) && not (hallBlocking hall)
+validateHallState hall = ((move1s*move2s == 0) && move1s <= 1 && move2s <= 1) && not (hallBlocking hall)
                                 where
+                                    h = hallSnails hall
                                     snails = S.toList h
                                     statuses = getStatus <$> snails
                                     countStatus s = length $ filter (==s) statuses
@@ -204,11 +218,13 @@ shouldStay s@(SnailState (name, _, x, y)) h = insideRoom s && (y == 2 || lowerOc
                                                 lowerOccupant = name == c
 
 nextSnailState :: HallState -> SnailState -> [(Int, HallState)]
---nextSnailState hall@(HallState h) snailState  | shouldStay snailState hall = trace (show "shouldStay " ++ show snailState) [(0, reachedDestState)]
-nextSnailState hall@(HallState h) snailState  | shouldStay snailState hall = [(0, reachedDestState)]
+--nextSnailState hall snailState  | shouldStay snailState hall = trace (show "shouldStay " ++ show snailState) [(0, reachedDestState)]
+nextSnailState hall snailState | shouldStay snailState hall = [(0, reachedDestState)]
 --                                              | otherwise = trace ("otherwise validStates " ++ show snailState ++ " " ++ show validStates) validHallStates
-                                              | otherwise = validHallStates
+                               | otherwise = validHallStates
                                         where
+                                            h = hallSnails hall
+                                            depth = hallDepth hall
                                             SnailState (name, status, x, y) = snailState
                                             others = S.toList $ h `S.difference` S.fromList [snailState]
                                             otherCoords = getCoord <$> others
@@ -234,16 +250,17 @@ nextSnailState hall@(HallState h) snailState  | shouldStay snailState hall = [(0
 --                                            validHallStates = trace ("weights " ++ show (fst <$> weightedStates)) [(c,h) | (c,v) <- weightedStates,
                                             validHallStates = [(c,h) | (c,v) <- weightedStates,
 --                                            validHallStates = [(c,h) | (c,v) <- weightedStates,
-                                                             let h = HallState (S.fromList (v:others)),
-                                                             validateHallState h]
-                                            reachedDestState = HallState $ S.fromList (SnailState (name, Stop3, x, y):others)
+                                                             let h = HallState (S.fromList (v:others)) depth,
+                                                             validateHallState hall]
+                                            reachedDestState = HallState (S.fromList (SnailState (name, Stop3, x, y):others)) depth
 
 safeHead xs = case xs of [] -> Nothing
                          (x:xx) -> Just x
 
 movingOnClearPath :: HallState -> Maybe (SnailState, [(Int, Int)])
-movingOnClearPath hall@(HallState h) = onClear
+movingOnClearPath hall = onClear
             where
+                h = hallSnails hall
                 snails = S.toList h
                 hasClearPath = filter (`pathClear` hall) snails
                 onClear = safeHead hasClearPath >>= (\m -> if pathClear m hall then
@@ -257,8 +274,9 @@ getName s@(SnailState (name,_,x,y)) = name
 
 stillOnPath :: Maybe (SnailState, [(Int, Int)]) -> HallState -> Bool
 stillOnPath Nothing hall = True
-stillOnPath j@(Just (s, path)) hall@(HallState h) = stillMoving j hall || stoppedS `elem` stop3s
+stillOnPath j@(Just (s, path)) hall = stillMoving j hall || stoppedS `elem` stop3s
                                                 where
+                                                    h = hallSnails hall
                                                     snails = S.toList h
                                                     stop3s = filter ((==Stop3).getStatus) snails
                                                     (SnailState (name, _, x, y)) = s
@@ -266,24 +284,27 @@ stillOnPath j@(Just (s, path)) hall@(HallState h) = stillMoving j hall || stoppe
 
 stillMoving :: Maybe (SnailState, [(Int, Int)]) -> HallState -> Bool
 stillMoving Nothing hall = True
-stillMoving (Just (s, path)) hall@(HallState h) = case currentlyMoving of Nothing -> False
+stillMoving (Just (s, path)) hall = case currentlyMoving of Nothing -> False
 --                                                                          Just s2 -> trace (show "stillMoving " ++ show s ++ " " ++ show s2 ++ " " ++ show (onPath s2 path) ++ " " ++ show path) onPath s2 path && (getName s == getName s2)
-                                                                          Just s2 -> onPath s2 path && (getName s == getName s2)
+                                                            Just s2 -> onPath s2 path && (getName s == getName s2)
                     where
+                        h = hallSnails hall
                         snails = S.toList h
                         moving = filter (\s -> getStatus s `elem` [Move1, Move2]) snails
                         currentlyMoving = safeHead moving
 
 nextState :: HallState -> [(Int, HallState)]
---nextState hall@(HallState h) = trace ("snails " ++ show staySnails ++ " next states " ++ show (nub nextStates) ++ " next states' " ++ show (nub nextStates')) nub nextStates
-nextState hall@(HallState h) = nub nextStates
---nextState hall@(HallState h) = snails >>= nextSnailState hall
+--nextState hall = trace ("snails " ++ show staySnails ++ " next states " ++ show (nub nextStates) ++ " next states' " ++ show (nub nextStates')) nub nextStates
+nextState hall = nub nextStates
+--nextState hall = snails >>= nextSnailState hall
             where
+                h = hallSnails hall
+                depth = hallDepth hall
                 snails = S.toList h
                 staySnails = map (\s@(SnailState (name, _, x, y)) -> if shouldStay s hall then
                                                                         SnailState (name, Stop3, x, y)
                                                                      else s) snails
-                stayHall = HallState (S.fromList staySnails)
+                stayHall = HallState (S.fromList staySnails) depth
                 nextStates' = staySnails >>= nextSnailState stayHall
                 nextStates = filter (\(c,hState) -> stillOnPath (movingOnClearPath hall) hState) nextStates'
 
@@ -300,6 +321,8 @@ dkstra queue dist visited | winningState `S.member` visited = dist
 --                          | otherwise = trace (show $ length visited) M.empty
                         where
                             ((val, hall), q') = P.deleteFindMin queue
+                            winningState = mkWinningState depth
+                            depth = hallDepth hall
                             nbrs = nextState hall
 --                            alt = trace (show nbrs) [(n,newD) | (edgeDist, n) <- nbrs,
                             alt = [(n,newD) | (edgeDist, n) <- nbrs,
