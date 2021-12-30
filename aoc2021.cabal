@@ -50,6 +50,7 @@ library
       Year2021.Day21.Solution
       Year2021.Day22.Solution
       Year2021.Day23.Solution
+      Year2021.Day24.Solution
   other-modules:
       Paths_aoc2021
   hs-source-dirs:
