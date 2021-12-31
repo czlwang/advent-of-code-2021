@@ -61,6 +61,7 @@ library
     , containers
     , fast-arithmetic
     , lens
+    , parallel
     , parsec
     , pqueue
     , safe
@@ -73,7 +74,7 @@ executable aoc2021-exe
       Paths_aoc2021
   hs-source-dirs:
       app
-  ghc-options: -threaded -rtsopts -with-rtsopts=-N
+  ghc-options: -O2 -threaded -rtsopts -with-rtsopts=-N
   build-depends:
       aoc2021
     , array
@@ -81,6 +82,7 @@ executable aoc2021-exe
     , containers
     , fast-arithmetic
     , lens
+    , parallel
     , parsec
     , pqueue
     , safe
@@ -102,6 +104,7 @@ test-suite aoc2021-test
     , containers
     , fast-arithmetic
     , lens
+    , parallel
     , parsec
     , pqueue
     , safe
