@@ -3,6 +3,8 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE RankNTypes #-}
+--89997318447864
+--89997318947968
 
 module Year2021.Day24.Solution (solve) where
 import Control.Lens hiding (noneOf)
@@ -39,7 +41,8 @@ solve root = do
             input1 <- readFile input1_path
             --print "hello"
             --print $ parseInput test
-            --print $ second mkExpr $ parseInput test
+            --print $ second (\is -> satisfies (view exprZ (mkExpr is [ALUVar "inp1"])))$ parseInput test
+            print $ second (\is -> checkAll is (replicate 14 9))$ parseInput test
             --print $ withReplacement 4 [[i] | i <- [1..9]]
             --print $ second (\tmp -> prettyPrint (mkExpr tmp ^. exprZ)) $ parseInput test
             ----print $ second (length.tryAllFromInitial) $ parseInput input1
@@ -51,7 +54,7 @@ solve root = do
             --print $ second solve1 $ parseInput test
             --print $ second solve1 $ parseInput test2
             --print $ second solve1 $ parseInput test2
-            print $ second solve1 $ parseInput test
+            --print $ second solve1 $ parseInput test
             --print $ second solve2 $ parseInput input1
           where
             test_path = root ++ "Day24/test_input1.txt"
@@ -92,7 +95,7 @@ run n  | n == 10^14 = 0
 --bruteForce instrs = head $ dropWhile (\(s,st) -> st ^. stateZ /= 0) $ chooseAndTry instrs
 
 --bruteForce instrs = fromMaybe 0 $ decrementAndTry instrs upper 0
-bruteForce instrs = fromMaybe 0 $ bruteForcePar instrs upper 
+bruteForce instrs = fromMaybe 0 $ bruteForcePar instrs upper
                     where
                     upper = 89999999999999
                     --upper = 22222222222222
@@ -151,7 +154,79 @@ int2list' acc 0 = acc
 int2list' acc i = int2list' ((i `mod` 10):acc) (i `quot` 10)
 int2list = int2list' []
 
-decrementAndTry instrs n lower | n==lower = Nothing
+mkInitExprInputs n = [ALUVar ("inp" ++ show i) | i <- [1..n]]
+
+notSatisfiable expr = trace (show $ satisfies expr) Zero `notElem` satisfies expr
+
+constTail idx a inputs = [i | let i = if i < idx then inputs !! i else a, ix <- [1 .. idx]]
+list2int' acc [] = acc
+list2int' acc (x:xs) = list2int' (acc + x*(10^length xs))  xs
+list2int = list2int' 0
+
+decrement' [] = []
+decrement' (x:xs) | x > 1 = (x-1):xs
+                  | otherwise = 9:decrement' xs
+
+decrement = reverse.decrement'.reverse 
+
+handleBruteForce :: [ALUInstr] -> [Int] -> Int -> Maybe [Int]
+handleBruteForce instrs inputs idx = res
+                                    where
+                                        upper = list2int inputs
+                                        lowerList = constTail idx 1 inputs
+                                        lower = list2int lowerList
+                                        res = int2list <$> decrementAndTry instrs upper lower
+                                        newIdx = max 0 (idx-1) --should this be 1 back or to the first one? maybe should reset index elsewhere
+                                        newInputs = decrement lowerList
+
+
+--handleBruteForce :: [ALUInstr] -> [Int] -> Int -> (Maybe [Int], Int, [Int])
+--handleBruteForce instrs inputs idx = (res, newIdx, newInputs)
+--                                    where
+--                                        upper = list2int inputs
+--                                        lowerList = constTail idx 1 inputs
+--                                        lower = list2int lowerList
+--                                        res = int2list <$> decrementAndTry instrs upper lower
+--                                        newIdx = max 0 (idx-1) --should this be 1 back or to the first one? maybe should reset index elsewhere
+--                                        newInputs = decrement lowerList
+
+mkNextInput idx inputs = [a | i <- [0..length inputs-1], let a = if i < length d then d !! i else 9]
+                        where
+                            d = decrement (take idx inputs)
+
+checkAll :: [ALUInstr] -> [Int] -> Maybe [Int]
+checkAll instrs inputs =
+                              --trace (show inputs ++ " " ++ prettyPrint (partialExpr ^. exprZ) ++ " " ++ show unsatisfiable) checkAll instrs nextInput
+                              trace (show inputs ++ " " ++ show unsatisfiable) checkAll instrs nextInput
+--                             | unsatisfiable = trace (show inputs ++ " " ++ show unsatisfiable) checkAll instrs nextInput
+--                             | otherwise = checkAll instrs nextInput
+                            where
+                                totalLength = length inputs
+                                nFreeVars = 1
+                                nFixedVars = totalLength - nFreeVars
+                                partialInputs = take nFixedVars inputs
+                                partialExprInputs = [ALULiteral i | i<-partialInputs] ++ mkInitExprInputs nFreeVars
+                                partialExpr = mkExpr instrs partialExprInputs
+                                nextInput = mkNextInput nFixedVars inputs
+                                unsatisfiable = notSatisfiable (partialExpr ^. exprZ)
+
+--checkAll :: [ALUInstr] -> [Int] -> Int -> (Maybe [Int], Int, [Int])
+--checkAll instrs inputs idx 
+--                            | idx <= 3 = handleBruteForce instrs inputs idx
+--                            | unsatisfiable = checkAll instrs nextInput idx --TODO
+--                            | otherwise = checkAll instrs nextInput idx -- TODO
+--                            where
+--                                totalLength = length inputs
+--                                nFreeVars = totalLength - idx
+--                                partialInputs = take idx inputs
+--                                partialExprInputs = [ALULiteral i | i<-partialInputs] ++ mkInitExprInputs nFreeVars
+--                                partialExpr = mkExpr instrs partialExprInputs
+--                                nextInput = mkNextInput idx inputs 
+--                                unsatisfiable = notSatisfiable partialExpr
+--                                --partialExpr = 
+
+
+decrementAndTry instrs n lower | n<lower = Nothing
                                | 0 `elem` inputs = decrementAndTry instrs (n-1) lower
                                | maybe False isZeroState result = Just n
                                | otherwise = trace (show n) decrementAndTry instrs (n-1) lower
@@ -199,13 +274,45 @@ initialState = ALUState 0 0 0 0
 initialExprState = ALUExprState (mkConstantExpr 0) (mkConstantExpr 0) (mkConstantExpr 0) (mkConstantExpr 0)
 initialExprInputs = [ALUVar ("inp" ++ show i) | i <- [1..14]]
 
-mkExpr instrs = mkExpr' instrs initialExprState initialExprInputs
+mkExpr instrs = mkExpr' instrs initialExprState
 
 mkExpr' :: [ALUInstr] -> ALUExprState -> [ALUArg] -> ALUExprState
 mkExpr' [] s _ = s
 mkExpr' (i:is) s inputs = mkExpr' is newState newInputs
                     where
                         (newState, newInputs) = handleInstr i s inputs
+
+data Constraint = Positive | Negative | Zero deriving (Show, Eq)
+
+multConstr Positive Negative = Negative
+multConstr Zero _ = Zero
+multConstr Positive Positive = Positive
+multConstr Negative Negative = Positive
+multConstr x y = multConstr y x
+
+addConstr Positive Negative = [Positive, Negative, Zero]
+addConstr Zero x = [x]
+addConstr Positive Positive = [Positive]
+addConstr Negative Negative = [Negative]
+addConstr x y = addConstr y x
+
+satisfies :: ALUExpr -> [Constraint]
+satisfies (ALUAtomExpr (ALUVar c)) = [Positive]
+satisfies (ALUAtomExpr (ALULiteral i)) | i==0 = [Zero]
+                                       | i<0 = [Negative]
+                                       | i>0 = [Positive]
+
+satisfies expr = case op of
+                               Mul -> nub $ [multConstr c1 c2 | c1 <- constr1, c2 <- constr2]
+                               Add -> nub $ concat [addConstr c1 c2 | c1 <- constr1, c2 <- constr2]
+                               Div -> nub $ Zero:[multConstr c1 c2 | c1 <- constr1, c2 <- constr2]
+                               Mod -> [Zero, Positive]
+                               Eql -> [Zero, Positive]
+                               _   -> error "uhoh"
+                    where
+                        (ALUBinExpr op arg1 arg2) = expr
+                        constr1 = satisfies arg1
+                        constr2 = satisfies arg2
 
 handleInstr :: ALUInstr -> ALUExprState -> [ALUArg] -> (ALUExprState, [ALUArg])
 handleInstr (ALUUn Inp (ALUVar c)) s (i:is) = (s & lens .~ ALUAtomExpr i,is)
