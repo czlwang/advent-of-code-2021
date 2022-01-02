@@ -34,8 +34,11 @@
 - This one was straightforward with the parsec parser combinator library. I've been told that `try x <|> y` is bad for performance, but in this case the input was small enough for it to be fine.
 ## Day 17
 - For part 1, the key realization is to see that the x and y trajectories are completely independent from each other. So I just need to find a y-velocity that doesn't result in the missile overshooting the target on its way down. The other key observation is that the missile will have a velocity of equal magnitude and opposite direction when it reaches position 0 on its way back down. Well, almost equal velocity. There's an off-by-one case to consider:
-- The y velocities for the missile will look like [y0, y0-1, y0-2      ,...,  0   , -1  , -2    ,... -(y0+1)]
--                   and the positions will be     [0,  y0  , y0+(y0-1) ,...,  ymax, ymax, ymax-1,... 0      ]
+- The y velocities and positions for the missile will look like 
+```
+[y0, y0-1, y0-2      ,...,  0   , -1  , -2    ,... -(y0+1)]
+[0,  y0  , y0+(y0-1) ,...,  ymax, ymax, ymax-1,... 0      ]
+```
 - So the missile reaches 0 again with a velocity of -(y0+1). If we don't want the missile to overshoot the lower ybound. we need to set -(y0+1)=(lower     ybound)
 - For part 2, to find every valid starting velocity, we upper-bound our y search range with the velocity found in part 1. We lower bound our y search with its negative. Finding the bounds for x is easy: it needs to be bigger than 0 and less than the velocity that would cause the missile to immediately overshoot. For each initial x and y velocity, we check T time-steps of the trajectory. How big should T be? This is determined by the rise and fall time found in part 1, since after that T, all y positions would be outside the target range.
 ## Day 18
