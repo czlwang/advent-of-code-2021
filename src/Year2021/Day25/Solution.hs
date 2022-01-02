@@ -1,35 +1,16 @@
-{-# LANGUAGE RecordWildCards #-}
-{-# LANGUAGE TupleSections #-}
-{-# LANGUAGE LambdaCase #-}
-{-# LANGUAGE TemplateHaskell #-}
-{-# LANGUAGE RankNTypes #-}
 module Year2021.Day25.Solution (solve) where
-import Control.Lens hiding (noneOf)
-import Control.Lens.TH
-import Debug.Trace
 import Lib hiding (list2array)
 import Text.ParserCombinators.Parsec
 import Data.Bifunctor
 import Control.Monad
-import qualified Data.Map as M
 import qualified Data.Array as A
-import qualified Data.Set as S
-import Numeric.Combinatorics
-import Data.List
-import Data.Ord
-import Data.Either
-import Data.Char
-import qualified Data.PQueue.Prio.Min as P
-import Text.Read
-import Data.Maybe
-import Control.Parallel
 
 solve :: String -> IO()
 solve root = do
             test <- readFile test_path
             input1 <- readFile input1_path
-            print $ second (run 0) $ parseInput test
-            print $ second (run 0) $ parseInput input1
+            print $ second ((==58).solve1) $ parseInput test
+            print $ second solve1 $ parseInput input1
           where
             test_path = root ++ "Day25/test_input1.txt"
             input1_path = root ++ "Day25/input1.txt"
@@ -39,16 +20,6 @@ cucumberLine = many1 $ char '.' <|> char '>' <|> char 'v'
 
 data Cucumber = EastF | SouthF | EmptySpot deriving (Show, Eq)
 type Floor = A.Array (Int,Int) Cucumber
-
-prettyPrint :: Floor -> String
-prettyPrint cs = intercalate "\n" [[cucumber2char (cs A.! (i,j)) | j <- [0..m]] | i <- [0..n]]
-                where
-                    (n,m) = (snd.A.bounds) cs
-
-cucumber2char c | c==EastF     = '>'
-                | c==SouthF    = 'v'
-                | c==EmptySpot = '.'
-                | otherwise = error "uhoh"
 
 char2cucumber c | c=='>' = EastF
                 | c=='v' = SouthF
@@ -93,3 +64,5 @@ run count oldFloor | newFloor == oldFloor = count+1
                    | otherwise            = run (count+1) newFloor 
                    where 
                     newFloor = floorStep oldFloor
+
+solve1 = run 0
