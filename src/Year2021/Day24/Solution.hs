@@ -32,7 +32,10 @@ data ALUInstr = ALUBin ALUOp ALUArg ALUArg | ALUUn ALUOp ALUArg deriving Show
 data ALUState = ALUState {_stateW :: Int, _stateX :: Int, _stateY :: Int, _stateZ :: Int} deriving (Show, Eq, Ord)
 data ALUExpr = ALUBinExpr ALUOp ALUExpr ALUExpr | ALUUnExprOp ALUOp ALUExpr | ALUAtomExpr ALUArg deriving Show
 data ALUExprState = ALUExprState {_exprW :: ALUExpr, _exprX :: ALUExpr, _exprY :: ALUExpr, _exprZ :: ALUExpr} deriving Show
+data ALUBoundsState = ALUBoundsState {_boundsW :: Bounds, _boundsX :: Bounds, _boundsY :: Bounds, _boundsZ :: Bounds} deriving Show
+type Bounds = (Int, Int)
 $(makeLenses ''ALUState)
+$(makeLenses ''ALUBoundsState)
 $(makeLenses ''ALUExprState)
 
 solve :: String -> IO()
@@ -42,7 +45,12 @@ solve root = do
             --print "hello"
             --print $ parseInput test
             --print $ second (\is -> satisfies (view exprZ (mkExpr is [ALUVar "inp1"])))$ parseInput test
-            print $ second (\is -> checkAll is (replicate 14 9))$ parseInput test
+            --print $ second (\is -> list2int <$> checkAll is (digitToInt <$> "79997318947968") 0 True)$ parseInput test
+            print $ second (\is -> list2int <$> checkAll is (digitToInt <$> "99999999999999") 0 True)$ parseInput test
+            print $ second (\is -> list2int <$> checkAll is (digitToInt <$> "11111111111111") 0 False)$ parseInput test
+            --print $ second (\is -> list2int <$> checkAll is (digitToInt <$> "11111111111111") 0 False)$ parseInput test
+            --print $ second (\is -> checkAll is (digitToInt <$> "89997318447864") 0)$ parseInput test
+            --print $ second (\is -> checkAll is (replicate 14 9) 0)$ parseInput test
             --print $ withReplacement 4 [[i] | i <- [1..9]]
             --print $ second (\tmp -> prettyPrint (mkExpr tmp ^. exprZ)) $ parseInput test
             ----print $ second (length.tryAllFromInitial) $ parseInput input1
@@ -154,20 +162,29 @@ int2list' acc 0 = acc
 int2list' acc i = int2list' ((i `mod` 10):acc) (i `quot` 10)
 int2list = int2list' []
 
+mkInitBoundInputs n = [ALUVar ("inp" ++ show i) | i <- [1..n]]
 mkInitExprInputs n = [ALUVar ("inp" ++ show i) | i <- [1..n]]
 
-notSatisfiable expr = trace (show $ satisfies expr) Zero `notElem` satisfies expr
+--notSatisfiable expr = trace (show $ satisfies expr) Zero `notElem` satisfies expr
+notSatisfiable (Just s) = not $ inRange (s ^. boundsZ) 0
+notSatisfiable Nothing = True
 
 constTail idx a inputs = [i | let i = if i < idx then inputs !! i else a, ix <- [1 .. idx]]
 list2int' acc [] = acc
 list2int' acc (x:xs) = list2int' (acc + x*(10^length xs))  xs
 list2int = list2int' 0
 
+increment' [] = []
+increment' (x:xs) | x < 9 = (x+1):xs
+                  | otherwise = 1:increment' xs
+
+increment = reverse.increment'.reverse
+
 decrement' [] = []
 decrement' (x:xs) | x > 1 = (x-1):xs
                   | otherwise = 9:decrement' xs
 
-decrement = reverse.decrement'.reverse 
+decrement = reverse.decrement'.reverse
 
 handleBruteForce :: [ALUInstr] -> [Int] -> Int -> Maybe [Int]
 handleBruteForce instrs inputs idx = res
@@ -190,25 +207,39 @@ handleBruteForce instrs inputs idx = res
 --                                        newIdx = max 0 (idx-1) --should this be 1 back or to the first one? maybe should reset index elsewhere
 --                                        newInputs = decrement lowerList
 
-mkNextInput idx inputs = [a | i <- [0..length inputs-1], let a = if i < length d then d !! i else 9]
+mkNextIncInput idx inputs = [a | i <- [0..length inputs-1], let a = if i < length d then d !! i else 1]
+                        where
+                            d = increment (take idx inputs)
+
+mkNextDecInput idx inputs = [a | i <- [0..length inputs-1], let a = if i < length d then d !! i else 9]
                         where
                             d = decrement (take idx inputs)
 
-checkAll :: [ALUInstr] -> [Int] -> Maybe [Int]
-checkAll instrs inputs =
-                              --trace (show inputs ++ " " ++ prettyPrint (partialExpr ^. exprZ) ++ " " ++ show unsatisfiable) checkAll instrs nextInput
-                              trace (show inputs ++ " " ++ show unsatisfiable) checkAll instrs nextInput
---                             | unsatisfiable = trace (show inputs ++ " " ++ show unsatisfiable) checkAll instrs nextInput
---                             | otherwise = checkAll instrs nextInput
+checkAll :: [ALUInstr] -> [Int] -> Int -> Bool -> Maybe [Int]
+checkAll instrs inputs nFixedVars dec 
+                                  
+                                  | nFixedVars == length inputs && not unsatisfiable = trace (show inputs ++ " end " ++ show nFixedVars) Just inputs
+                                  | not unsatisfiable = trace (show inputs ++ " notunsatisfiable " ++ show nFixedVars) $
+                                                        case checkSatisfiable of Nothing -> if moreToGo then
+                                                                                            trace (show "moretogo" ++ show inputs ++ " " ++ show nextInput) recurse
+                                                                                            else
+                                                                                            trace (show "moretogono" ++ show inputs) Nothing
+                                                                                 res     -> res
+                                  | unsatisfiable && moreToGo = trace (show inputs ++ " unsatisfiable ") recurse
+                                  | otherwise = trace (show inputs ++ " otherwise " ++ show nFixedVars) Nothing
                             where
                                 totalLength = length inputs
-                                nFreeVars = 1
-                                nFixedVars = totalLength - nFreeVars
+                                nFreeVars = totalLength - nFixedVars
                                 partialInputs = take nFixedVars inputs
-                                partialExprInputs = [ALULiteral i | i<-partialInputs] ++ mkInitExprInputs nFreeVars
-                                partialExpr = mkExpr instrs partialExprInputs
+                                partialBoundsInputs = [ALULiteral i | i<-partialInputs] ++ mkInitBoundInputs nFreeVars
+                                partialState = evalBoundInstrs instrs initialBoundsState partialBoundsInputs
+                                mkNextInput = if dec then mkNextDecInput else mkNextIncInput
                                 nextInput = mkNextInput nFixedVars inputs
-                                unsatisfiable = notSatisfiable (partialExpr ^. exprZ)
+                                unsatisfiable = notSatisfiable partialState
+                                compareLiteral = if dec then 1 else 9
+                                moreToGo = inputs !! (nFixedVars-1) /= compareLiteral
+                                checkSatisfiable = checkAll instrs inputs (nFixedVars + 1) dec
+                                recurse = checkAll instrs nextInput nFixedVars dec
 
 --checkAll :: [ALUInstr] -> [Int] -> Int -> (Maybe [Int], Int, [Int])
 --checkAll instrs inputs idx 
@@ -241,6 +272,15 @@ withReplacement n ls = cartProduct (withReplacement (n-1) ls) ls
 
 tryAllInputs :: [ALUInstr] -> [ALUState] -> [Maybe ALUState]
 tryAllInputs instrs ss = nub [evalInstrs instrs s [i] | i <- [1..9], s<-ss]
+
+evalBoundInstrs :: [ALUInstr] -> ALUBoundsState -> [ALUArg] -> Maybe ALUBoundsState
+evalBoundInstrs [] s _ = Just s
+evalBoundInstrs (i:is) s inputs = case evalBounds i s inputs of
+--                                       Just (newState, newInputs) -> trace (show i ++ " " ++ show ((fst.fromJust) (evalBounds i s inputs))) evalBoundInstrs is newState newInputs
+                                       Just (newState, newInputs) -> evalBoundInstrs is newState newInputs
+                                       Nothing -> Nothing
+
+initialBoundsState = ALUBoundsState (0,0) (0,0) (0,0) (0,0)
 
 evalInstrs :: [ALUInstr] -> ALUState -> [Int] -> Maybe ALUState
 evalInstrs [] s _ = Just s
@@ -313,6 +353,51 @@ satisfies expr = case op of
                         (ALUBinExpr op arg1 arg2) = expr
                         constr1 = satisfies arg1
                         constr2 = satisfies arg2
+
+inRange (c1, c2) c3 = c3 >= c1 && c3 <= c2
+addBounds (a1, a2) (b1, b2) = Just (a1+b1, a2+b2)
+mulBounds (a1, a2) (b1, b2) = Just (minimum allCombos, maximum allCombos)
+                            where
+                                allCombos = [a1*b1, a1*b2, a2*b1, a2*b2]
+modBounds (a1, a2) (b1, b2) | b2 <= 0 = Nothing
+                            | a2 < 0 = Nothing
+                            | a1==a2 && b1==b2 = Just (a1 `mod` b1, a1 `mod` b1)
+                            | otherwise = Just (0, min a2 b2) -- can get even tighter bound
+divBounds (a1, a2) (b1, b2) | denomBounds == [0,0] = Nothing
+                            | otherwise = Just (minimum allCombos, maximum allCombos)
+                            where
+                                numBounds = filter (inRange (a1,a2)) [a1,a2,0]
+                                denomBounds = filter (inRange (b1, b2)) [b1,b2,-1,1]
+                                allCombos = [a `quot` b | a <- numBounds, b <- denomBounds]
+eqlBounds (a1, a2) (b1, b2) | a1==a2 && b1==b2 = Just $ if a1==b1 then (1,1) else (0,0)
+                            | overlap = Just (0,1)
+                            | otherwise = Just (0,0)
+                            where
+                                overlap = inRange (b1,b2) a2 || inRange (b1,b2) a1 || inRange (a1, a2) b1 || inRange (a1, a2) b2
+inpBounds (ALULiteral i) = Just (i,i)
+inpBounds (ALUVar _) = Just (1,9)
+
+evalBounds :: ALUInstr -> ALUBoundsState -> [ALUArg] -> Maybe (ALUBoundsState, [ALUArg])
+evalBounds (ALUUn Inp (ALUVar c)) s (i:is) = inpBounds i >>= (\b -> Just (s & lens .~ b, is))
+                                    where
+                                        lens = string2BoundsLens c
+
+evalBounds instr s is = case op of
+                               Mul -> mulBounds a1 a2 >>= (\b -> Just (s & lens .~ b, is))
+                               Add -> addBounds a1 a2 >>= (\b -> Just (s & lens .~ b, is))
+                               Div -> divBounds a1 a2 >>= (\b -> Just (s & lens .~ b, is))
+                               Mod -> modBounds a1 a2 >>= (\b -> Just (s & lens .~ b, is))
+                               Eql -> eqlBounds a1 a2 >>= (\b -> Just (s & lens .~ b, is))
+                               _   -> error "uhoh"
+                    where
+                        (ALUBin op arg1 arg2) = instr
+                        --(ALUVar c1) = trace (show op) arg1
+                        (ALUVar c1) = arg1
+                        lens :: Lens' ALUBoundsState Bounds
+                        lens = string2BoundsLens c1
+                        a1 = s ^. lens
+                        a2 = case arg2 of (ALULiteral i) -> (i,i)
+                                          (ALUVar v) -> s ^. string2BoundsLens v
 
 handleInstr :: ALUInstr -> ALUExprState -> [ALUArg] -> (ALUExprState, [ALUArg])
 handleInstr (ALUUn Inp (ALUVar c)) s (i:is) = (s & lens .~ ALUAtomExpr i,is)
@@ -387,6 +472,12 @@ mkMulExpr expr1 expr2 | zeroed = zeroExpr
                         constEval = mkConstEval (*) expr1 expr2
                         expr = ALUBinExpr Mul expr1 expr2
 --mkExpr _ _ _ = error "uhoh"
+string2BoundsLens :: String -> Lens' ALUBoundsState Bounds
+string2BoundsLens c | c == "x" = boundsX
+                  | c == "y" = boundsY
+                  | c == "z" = boundsZ
+                  | c == "w" = boundsW
+                  | otherwise = error "uhoh"
 
 string2ExprLens :: String -> Lens' ALUExprState ALUExpr
 string2ExprLens c | c == "x" = exprX
